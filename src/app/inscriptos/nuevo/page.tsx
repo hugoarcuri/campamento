@@ -55,7 +55,7 @@ export default function NuevoInscriptoPage() {
       status: "pending",
     });
 
-    router.push("/campamento/inscriptos/");
+    router.push("/inscriptos");
   }
 
   return (
@@ -210,7 +210,7 @@ export default function NuevoInscriptoPage() {
             </div>
 
             <div className="flex justify-end gap-3 border-t border-slate-200 pt-6 dark:border-slate-700">
-              <Link href="/campamento/inscriptos/">
+              <Link href="/inscriptos">
                 <Button variant="secondary" type="button">
                   Cancelar
                 </Button>

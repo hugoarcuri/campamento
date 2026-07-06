@@ -54,7 +54,7 @@ export default function DashboardPage() {
         title="Dashboard"
         description="Resumen general del campamento"
         actions={
-          <Link href="/campamento/inscriptos/nuevo/">
+          <Link href="/inscriptos/nuevo">
             <Button>+ Nuevo Inscripto</Button>
           </Link>
         }
@@ -116,7 +116,7 @@ export default function DashboardPage() {
           <CardContent>
             <div className="space-y-3">
               <Link
-                href="/campamento/inscriptos/nuevo/"
+                href="/inscriptos/nuevo"
                 className="flex items-center justify-between rounded-lg border border-slate-200 p-4 transition-colors hover:border-red-200 hover:bg-red-50 dark:border-slate-700 dark:hover:border-red-900 dark:hover:bg-red-950/30"
               >
                 <div className="flex items-center gap-3">
@@ -129,7 +129,7 @@ export default function DashboardPage() {
               </Link>
 
               <Link
-                href="/campamento/pagos/"
+                href="/pagos"
                 className="flex items-center justify-between rounded-lg border border-slate-200 p-4 transition-colors hover:border-red-200 hover:bg-red-50 dark:border-slate-700 dark:hover:border-red-900 dark:hover:bg-red-950/30"
               >
                 <div className="flex items-center gap-3">
@@ -142,7 +142,7 @@ export default function DashboardPage() {
               </Link>
 
               <Link
-                href="/campamento/reportes/"
+                href="/reportes"
                 className="flex items-center justify-between rounded-lg border border-slate-200 p-4 transition-colors hover:border-red-200 hover:bg-red-50 dark:border-slate-700 dark:hover:border-red-900 dark:hover:bg-red-950/30"
               >
                 <div className="flex items-center gap-3">

@@ -16,20 +16,23 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const basePath = "/campamento";
-
 const navigation = [
-  { name: "Dashboard", href: `${basePath}/dashboard/`, icon: LayoutDashboard },
-  { name: "Inscriptos", href: `${basePath}/inscriptos/`, icon: Users },
-  { name: "Nuevo Inscripto", href: `${basePath}/inscriptos/nuevo/`, icon: UserPlus },
-  { name: "Pagos", href: `${basePath}/pagos/`, icon: CreditCard },
-  { name: "Reportes", href: `${basePath}/reportes/`, icon: BarChart3 },
-  { name: "Configuración", href: `${basePath}/configuracion/`, icon: Settings },
+  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { name: "Inscriptos", href: "/inscriptos", icon: Users },
+  { name: "Nuevo Inscripto", href: "/inscriptos/nuevo", icon: UserPlus },
+  { name: "Pagos", href: "/pagos", icon: CreditCard },
+  { name: "Reportes", href: "/reportes", icon: BarChart3 },
+  { name: "Configuración", href: "/configuracion", icon: Settings },
 ];
 
 export function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
+
+  const isActive = (href: string) => {
+    if (href === "/dashboard") return pathname === href;
+    return pathname.startsWith(href);
+  };
 
   return (
     <>
@@ -62,7 +65,7 @@ export function Sidebar() {
         <div className="flex h-20 items-center gap-3 border-b border-red-700/50 px-6">
           <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-xl bg-white shadow-md">
             <Image
-              src={`${basePath}/logoJh.jpeg`}
+              src="/logoJh.jpeg"
               alt="JH Logo"
               fill
               className="object-cover"
@@ -80,32 +83,27 @@ export function Sidebar() {
 
         {/* Navigation */}
         <nav className="flex-1 space-y-1 px-3 py-4">
-          {navigation.map((item) => {
-            const isActive =
-              pathname === item.href ||
-              (item.href !== `${basePath}/dashboard/` && pathname.startsWith(item.href));
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setMobileOpen(false)}
+          {navigation.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={() => setMobileOpen(false)}
+              className={cn(
+                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150",
+                isActive(item.href)
+                  ? "bg-white text-red-800 shadow-sm"
+                  : "text-red-100 hover:bg-red-700/50 hover:text-white"
+              )}
+            >
+              <item.icon
                 className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150",
-                  isActive
-                    ? "bg-white text-red-800 shadow-sm"
-                    : "text-red-100 hover:bg-red-700/50 hover:text-white"
+                  "h-5 w-5 flex-shrink-0",
+                  isActive(item.href) ? "text-red-700" : "text-red-300"
                 )}
-              >
-                <item.icon
-                  className={cn(
-                    "h-5 w-5 flex-shrink-0",
-                    isActive ? "text-red-700" : "text-red-300"
-                  )}
-                />
-                {item.name}
-              </Link>
-            );
-          })}
+              />
+              {item.name}
+            </Link>
+          ))}
         </nav>
 
         {/* Footer */}
