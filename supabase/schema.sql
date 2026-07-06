@@ -42,6 +42,23 @@ CREATE TABLE IF NOT EXISTS payments (
   paid_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Tabla de configuración
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Insertar valores por defecto
+INSERT INTO settings (key, value) VALUES
+  ('camp_name', 'La Lucila'),
+  ('camp_year', '2026'),
+  ('start_date', ''),
+  ('end_date', ''),
+  ('registration_fee', '0'),
+  ('currency', 'ARS')
+ON CONFLICT (key) DO NOTHING;
+
 -- Índices
 CREATE INDEX IF NOT EXISTS idx_enrollments_camper ON enrollments(camper_id);
 CREATE INDEX IF NOT EXISTS idx_enrollments_status ON enrollments(status);
@@ -52,8 +69,14 @@ CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(status);
 ALTER TABLE campers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE enrollments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE payments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
 
 -- Políticas: acceso completo por ahora (ajustar según autenticación)
+DROP POLICY IF EXISTS "Allow all on campers" ON campers;
+DROP POLICY IF EXISTS "Allow all on enrollments" ON enrollments;
+DROP POLICY IF EXISTS "Allow all on payments" ON payments;
+DROP POLICY IF EXISTS "Allow all on settings" ON settings;
 CREATE POLICY "Allow all on campers" ON campers FOR ALL USING (true);
 CREATE POLICY "Allow all on enrollments" ON enrollments FOR ALL USING (true);
 CREATE POLICY "Allow all on payments" ON payments FOR ALL USING (true);
+CREATE POLICY "Allow all on settings" ON settings FOR ALL USING (true);

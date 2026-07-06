@@ -20,42 +20,47 @@ export default function NuevoInscriptoPage() {
     setIsPending(true);
     setError(null);
 
-    const formData = new FormData(e.currentTarget);
-    const supabase = createClient();
+    try {
+      const formData = new FormData(e.currentTarget);
+      const supabase = createClient();
 
-    const camperData = {
-      first_name: formData.get("first_name") as string,
-      last_name: formData.get("last_name") as string,
-      email: formData.get("email") as string,
-      phone: formData.get("phone") as string,
-      age: Number(formData.get("age")),
-      gender: formData.get("gender") as string,
-      church: (formData.get("church") as string) || null,
-      medical_notes: (formData.get("medical_notes") as string) || null,
-      emergency_contact: formData.get("emergency_contact") as string,
-      emergency_phone: formData.get("emergency_phone") as string,
-    };
+      const camperData = {
+        first_name: formData.get("first_name") as string,
+        last_name: formData.get("last_name") as string,
+        email: formData.get("email") as string,
+        phone: formData.get("phone") as string,
+        age: Number(formData.get("age")),
+        gender: formData.get("gender") as string,
+        church: (formData.get("church") as string) || null,
+        medical_notes: (formData.get("medical_notes") as string) || null,
+        emergency_contact: formData.get("emergency_contact") as string,
+        emergency_phone: formData.get("emergency_phone") as string,
+      };
 
-    const { data: camper, error: camperError } = await supabase
-      .from("campers")
-      .insert(camperData)
-      .select()
-      .single();
+      const { data: camper, error: camperError } = await supabase
+        .from("campers")
+        .insert(camperData)
+        .select()
+        .single();
 
-    if (camperError) {
-      setError(camperError.message);
+      if (camperError) {
+        setError(camperError.message);
+        setIsPending(false);
+        return;
+      }
+
+      await supabase.from("enrollments").insert({
+        camper_id: camper.id,
+        camp_name: "La Lucila",
+        camp_year: 2026,
+        status: "pending",
+      });
+
+      router.push("/inscriptos");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error inesperado");
       setIsPending(false);
-      return;
     }
-
-    await supabase.from("enrollments").insert({
-      camper_id: camper.id,
-      camp_name: "La Lucila",
-      camp_year: 2026,
-      status: "pending",
-    });
-
-    router.push("/campamento/inscriptos/");
   }
 
   return (
@@ -210,7 +215,7 @@ export default function NuevoInscriptoPage() {
             </div>
 
             <div className="flex justify-end gap-3 border-t border-slate-200 pt-6 dark:border-slate-700">
-              <Link href="/campamento/inscriptos/">
+              <Link href="/inscriptos">
                 <Button variant="secondary" type="button">
                   Cancelar
                 </Button>

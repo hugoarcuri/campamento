@@ -27,23 +27,27 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function loadStats() {
-      const supabase = createClient();
-      const [enrollmentsRes, paymentsRes] = await Promise.all([
-        supabase.from("enrollments").select("status"),
-        supabase.from("payments").select("amount, status"),
-      ]);
+      try {
+        const supabase = createClient();
+        const [enrollmentsRes, paymentsRes] = await Promise.all([
+          supabase.from("enrollments").select("status"),
+          supabase.from("payments").select("amount, status"),
+        ]);
 
-      const enrollments = enrollmentsRes.data || [];
-      const payments = paymentsRes.data || [];
+        const enrollments = enrollmentsRes.data || [];
+        const payments = paymentsRes.data || [];
 
-      setStats({
-        total_enrolled: enrollments.length,
-        total_pending: enrollments.filter((e) => e.status === "pending").length,
-        total_confirmed: enrollments.filter((e) => e.status === "confirmed").length,
-        total_revenue: payments
-          .filter((p) => p.status === "completed")
-          .reduce((sum, p) => sum + Number(p.amount), 0),
-      });
+        setStats({
+          total_enrolled: enrollments.length,
+          total_pending: enrollments.filter((e) => e.status === "pending").length,
+          total_confirmed: enrollments.filter((e) => e.status === "confirmed").length,
+          total_revenue: payments
+            .filter((p) => p.status === "completed")
+            .reduce((sum, p) => sum + Number(p.amount), 0),
+        });
+      } catch (err) {
+        console.error("Error loading stats:", err);
+      }
     }
     loadStats();
   }, []);
@@ -54,7 +58,7 @@ export default function DashboardPage() {
         title="Dashboard"
         description="Resumen general del campamento"
         actions={
-          <Link href="/campamento/inscriptos/nuevo/">
+          <Link href="/inscriptos/nuevo">
             <Button>+ Nuevo Inscripto</Button>
           </Link>
         }
@@ -116,7 +120,7 @@ export default function DashboardPage() {
           <CardContent>
             <div className="space-y-3">
               <Link
-                href="/campamento/inscriptos/nuevo/"
+                href="/inscriptos/nuevo"
                 className="flex items-center justify-between rounded-lg border border-slate-200 p-4 transition-colors hover:border-red-200 hover:bg-red-50 dark:border-slate-700 dark:hover:border-red-900 dark:hover:bg-red-950/30"
               >
                 <div className="flex items-center gap-3">
@@ -129,7 +133,7 @@ export default function DashboardPage() {
               </Link>
 
               <Link
-                href="/campamento/pagos/"
+                href="/pagos"
                 className="flex items-center justify-between rounded-lg border border-slate-200 p-4 transition-colors hover:border-red-200 hover:bg-red-50 dark:border-slate-700 dark:hover:border-red-900 dark:hover:bg-red-950/30"
               >
                 <div className="flex items-center gap-3">
@@ -142,7 +146,7 @@ export default function DashboardPage() {
               </Link>
 
               <Link
-                href="/campamento/reportes/"
+                href="/reportes"
                 className="flex items-center justify-between rounded-lg border border-slate-200 p-4 transition-colors hover:border-red-200 hover:bg-red-50 dark:border-slate-700 dark:hover:border-red-900 dark:hover:bg-red-950/30"
               >
                 <div className="flex items-center gap-3">
