@@ -16,13 +16,15 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+const basePath = "/campamento";
+
 const navigation = [
-  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Inscriptos", href: "/inscriptos", icon: Users },
-  { name: "Nuevo Inscripto", href: "/inscriptos/nuevo", icon: UserPlus },
-  { name: "Pagos", href: "/pagos", icon: CreditCard },
-  { name: "Reportes", href: "/reportes", icon: BarChart3 },
-  { name: "Configuración", href: "/configuracion", icon: Settings },
+  { name: "Dashboard", href: `${basePath}/dashboard/`, icon: LayoutDashboard },
+  { name: "Inscriptos", href: `${basePath}/inscriptos/`, icon: Users },
+  { name: "Nuevo Inscripto", href: `${basePath}/inscriptos/nuevo/`, icon: UserPlus },
+  { name: "Pagos", href: `${basePath}/pagos/`, icon: CreditCard },
+  { name: "Reportes", href: `${basePath}/reportes/`, icon: BarChart3 },
+  { name: "Configuración", href: `${basePath}/configuracion/`, icon: Settings },
 ];
 
 export function Sidebar() {
@@ -60,7 +62,7 @@ export function Sidebar() {
         <div className="flex h-20 items-center gap-3 border-b border-red-700/50 px-6">
           <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-xl bg-white shadow-md">
             <Image
-              src="/logoJh.jpeg"
+              src={`${basePath}/logoJh.jpeg`}
               alt="JH Logo"
               fill
               className="object-cover"
@@ -81,7 +83,7 @@ export function Sidebar() {
           {navigation.map((item) => {
             const isActive =
               pathname === item.href ||
-              (item.href !== "/dashboard" && pathname.startsWith(item.href));
+              (item.href !== `${basePath}/dashboard/` && pathname.startsWith(item.href));
             return (
               <Link
                 key={item.href}

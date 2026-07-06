@@ -1,3 +1,5 @@
+"use client";
+
 import { AppShell } from "@/components/layout/AppShell";
 import {
   Users,
@@ -11,11 +13,40 @@ import { StatCard } from "@/components/ui/StatCard";
 import { Card, CardHeader, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { getDashboardStats } from "@/actions/campers";
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 
-export default async function DashboardPage() {
-  const stats = await getDashboardStats();
+export default function DashboardPage() {
+  const [stats, setStats] = useState({
+    total_enrolled: 0,
+    total_pending: 0,
+    total_confirmed: 0,
+    total_revenue: 0,
+  });
+
+  useEffect(() => {
+    async function loadStats() {
+      const supabase = createClient();
+      const [enrollmentsRes, paymentsRes] = await Promise.all([
+        supabase.from("enrollments").select("status"),
+        supabase.from("payments").select("amount, status"),
+      ]);
+
+      const enrollments = enrollmentsRes.data || [];
+      const payments = paymentsRes.data || [];
+
+      setStats({
+        total_enrolled: enrollments.length,
+        total_pending: enrollments.filter((e) => e.status === "pending").length,
+        total_confirmed: enrollments.filter((e) => e.status === "confirmed").length,
+        total_revenue: payments
+          .filter((p) => p.status === "completed")
+          .reduce((sum, p) => sum + Number(p.amount), 0),
+      });
+    }
+    loadStats();
+  }, []);
 
   return (
     <AppShell>
@@ -23,7 +54,7 @@ export default async function DashboardPage() {
         title="Dashboard"
         description="Resumen general del campamento"
         actions={
-          <Link href="/inscriptos/nuevo">
+          <Link href="/campamento/inscriptos/nuevo/">
             <Button>+ Nuevo Inscripto</Button>
           </Link>
         }
@@ -85,7 +116,7 @@ export default async function DashboardPage() {
           <CardContent>
             <div className="space-y-3">
               <Link
-                href="/inscriptos/nuevo"
+                href="/campamento/inscriptos/nuevo/"
                 className="flex items-center justify-between rounded-lg border border-slate-200 p-4 transition-colors hover:border-red-200 hover:bg-red-50 dark:border-slate-700 dark:hover:border-red-900 dark:hover:bg-red-950/30"
               >
                 <div className="flex items-center gap-3">
@@ -98,7 +129,7 @@ export default async function DashboardPage() {
               </Link>
 
               <Link
-                href="/pagos"
+                href="/campamento/pagos/"
                 className="flex items-center justify-between rounded-lg border border-slate-200 p-4 transition-colors hover:border-red-200 hover:bg-red-50 dark:border-slate-700 dark:hover:border-red-900 dark:hover:bg-red-950/30"
               >
                 <div className="flex items-center gap-3">
@@ -111,7 +142,7 @@ export default async function DashboardPage() {
               </Link>
 
               <Link
-                href="/reportes"
+                href="/campamento/reportes/"
                 className="flex items-center justify-between rounded-lg border border-slate-200 p-4 transition-colors hover:border-red-200 hover:bg-red-50 dark:border-slate-700 dark:hover:border-red-900 dark:hover:bg-red-950/30"
               >
                 <div className="flex items-center gap-3">

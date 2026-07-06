@@ -1,12 +1,15 @@
+"use client";
+
 import { AppShell } from "@/components/layout/AppShell";
-import { Users, Trash2, Eye, Mail, Phone, Church } from "lucide-react";
+import { Users, Trash2, Mail, Phone, Church } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { getCampers, deleteCamper } from "@/actions/campers";
+import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 
 const statusMap: Record<string, { label: string; variant: "success" | "warning" | "danger" }> = {
   pending: { label: "Pendiente", variant: "warning" },
@@ -14,8 +17,29 @@ const statusMap: Record<string, { label: string; variant: "success" | "warning" 
   cancelled: { label: "Cancelado", variant: "danger" },
 };
 
-export default async function InscriptosPage() {
-  const campers = await getCampers();
+export default function InscriptosPage() {
+  const [campers, setCampers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadCampers() {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("campers")
+        .select("*, enrollments (*)")
+        .order("created_at", { ascending: false });
+      setCampers(data || []);
+      setLoading(false);
+    }
+    loadCampers();
+  }, []);
+
+  async function handleDelete(id: string) {
+    if (!confirm("¿Eliminar este inscripto?")) return;
+    const supabase = createClient();
+    await supabase.from("campers").delete().eq("id", id);
+    setCampers(campers.filter((c) => c.id !== id));
+  }
 
   return (
     <AppShell>
@@ -23,20 +47,24 @@ export default async function InscriptosPage() {
         title="Inscriptos"
         description="Gestión de todos los inscriptos al campamento"
         actions={
-          <Link href="/inscriptos/nuevo">
+          <Link href="/campamento/inscriptos/nuevo/">
             <Button>+ Nuevo Inscripto</Button>
           </Link>
         }
       />
 
       <Card>
-        {campers.length === 0 ? (
+        {loading ? (
+          <div className="flex justify-center py-12">
+            <p className="text-sm text-slate-500">Cargando...</p>
+          </div>
+        ) : campers.length === 0 ? (
           <EmptyState
             icon={<Users className="h-8 w-8 text-slate-400" />}
             title="No hay inscriptos"
             description="Comienza agregando el primer inscripto al campamento."
             action={
-              <Link href="/inscriptos/nuevo">
+              <Link href="/campamento/inscriptos/nuevo/">
                 <Button>Agregar Inscripto</Button>
               </Link>
             }
@@ -67,7 +95,7 @@ export default async function InscriptosPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {campers.map((camper: any) => {
+                {campers.map((camper) => {
                   const enrollment = camper.enrollments?.[0];
                   const status = enrollment?.status || "pending";
                   const statusInfo = statusMap[status] || statusMap.pending;
@@ -114,17 +142,13 @@ export default async function InscriptosPage() {
                         </Badge>
                       </td>
                       <td className="py-4">
-                        <div className="flex items-center gap-2">
-                          <form action={deleteCamper.bind(null, camper.id)}>
-                            <button
-                              type="submit"
-                              className="rounded p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
-                              title="Eliminar"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </form>
-                        </div>
+                        <button
+                          onClick={() => handleDelete(camper.id)}
+                          className="rounded p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
+                          title="Eliminar"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       </td>
                     </tr>
                   );

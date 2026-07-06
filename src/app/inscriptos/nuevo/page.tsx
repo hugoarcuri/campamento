@@ -1,26 +1,62 @@
 "use client";
 
-import { useActionState } from "react";
+import { useState } from "react";
 import { UserPlus } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader, CardContent } from "@/components/ui/Card";
-import { createCamper } from "@/actions/campers";
+import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { AppShell } from "@/components/layout/AppShell";
 
 export default function NuevoInscriptoPage() {
   const router = useRouter();
-  const [state, formAction, isPending] = useActionState(
-    async (_prev: any, formData: FormData) => {
-      const result = await createCamper(formData);
-      if (result.success) {
-        router.push("/inscriptos");
-      }
-      return result;
-    },
-    null
-  );
+  const [isPending, setIsPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setIsPending(true);
+    setError(null);
+
+    const formData = new FormData(e.currentTarget);
+    const supabase = createClient();
+
+    const camperData = {
+      first_name: formData.get("first_name") as string,
+      last_name: formData.get("last_name") as string,
+      email: formData.get("email") as string,
+      phone: formData.get("phone") as string,
+      age: Number(formData.get("age")),
+      gender: formData.get("gender") as string,
+      church: (formData.get("church") as string) || null,
+      medical_notes: (formData.get("medical_notes") as string) || null,
+      emergency_contact: formData.get("emergency_contact") as string,
+      emergency_phone: formData.get("emergency_phone") as string,
+    };
+
+    const { data: camper, error: camperError } = await supabase
+      .from("campers")
+      .insert(camperData)
+      .select()
+      .single();
+
+    if (camperError) {
+      setError(camperError.message);
+      setIsPending(false);
+      return;
+    }
+
+    await supabase.from("enrollments").insert({
+      camper_id: camper.id,
+      camp_name: "La Lucila",
+      camp_year: 2026,
+      status: "pending",
+    });
+
+    router.push("/campamento/inscriptos/");
+  }
 
   return (
     <AppShell>
@@ -32,13 +68,13 @@ export default function NuevoInscriptoPage() {
       <Card>
         <CardHeader>Datos Personales</CardHeader>
         <CardContent>
-          {state && !state.success && (
+          {error && (
             <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
-              Error: {state.error}
+              Error: {error}
             </div>
           )}
 
-          <form action={formAction} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
@@ -174,7 +210,7 @@ export default function NuevoInscriptoPage() {
             </div>
 
             <div className="flex justify-end gap-3 border-t border-slate-200 pt-6 dark:border-slate-700">
-              <Link href="/inscriptos">
+              <Link href="/campamento/inscriptos/">
                 <Button variant="secondary" type="button">
                   Cancelar
                 </Button>
@@ -196,6 +232,3 @@ export default function NuevoInscriptoPage() {
     </AppShell>
   );
 }
-
-// Import needed for AppShell
-import { AppShell } from "@/components/layout/AppShell";
