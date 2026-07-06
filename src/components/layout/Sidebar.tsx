@@ -17,12 +17,12 @@ import {
 import { cn } from "@/lib/utils";
 
 const navigation = [
-  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Inscriptos", href: "/inscriptos", icon: Users },
-  { name: "Nuevo Inscripto", href: "/inscriptos/nuevo", icon: UserPlus },
-  { name: "Pagos", href: "/pagos", icon: CreditCard },
-  { name: "Reportes", href: "/reportes", icon: BarChart3 },
-  { name: "Configuración", href: "/configuracion", icon: Settings },
+  { name: "Dashboard", href: "/dashboard/", icon: LayoutDashboard },
+  { name: "Inscriptos", href: "/inscriptos/", icon: Users },
+  { name: "Nuevo Inscripto", href: "/inscriptos/nuevo/", icon: UserPlus },
+  { name: "Pagos", href: "/pagos/", icon: CreditCard },
+  { name: "Reportes", href: "/reportes/", icon: BarChart3 },
+  { name: "Configuración", href: "/configuracion/", icon: Settings },
 ];
 
 export function Sidebar() {

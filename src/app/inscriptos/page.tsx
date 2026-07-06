@@ -47,7 +47,7 @@ export default function InscriptosPage() {
         title="Inscriptos"
         description="Gestión de todos los inscriptos al campamento"
         actions={
-          <Link href="/inscriptos/nuevo">
+              <Link href="/inscriptos/nuevo/">
             <Button>+ Nuevo Inscripto</Button>
           </Link>
         }
@@ -64,7 +64,7 @@ export default function InscriptosPage() {
             title="No hay inscriptos"
             description="Comienza agregando el primer inscripto al campamento."
             action={
-              <Link href="/inscriptos/nuevo">
+          <Link href="/inscriptos/nuevo/">
                 <Button>Agregar Inscripto</Button>
               </Link>
             }
