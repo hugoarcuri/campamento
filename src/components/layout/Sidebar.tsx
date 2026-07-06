@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
@@ -64,13 +63,10 @@ export function Sidebar() {
         {/* Logo */}
         <div className="flex h-20 items-center gap-3 border-b border-red-700/50 px-6">
           <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-xl bg-white shadow-md">
-            <Image
-              src="/logoJh.jpeg"
+            <img
+              src="/campamento/logoJh.jpeg"
               alt="JH Logo"
-              fill
-              sizes="48px"
-              className="object-cover"
-              priority
+              className="h-full w-full object-cover"
             />
           </div>
           <div>
