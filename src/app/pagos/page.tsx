@@ -554,22 +554,22 @@ export default function PagosPage() {
                         const camper = payment.enrollment?.camper;
                         const statusInfo = statusConfig[payment.status] || statusConfig.pending;
                         return (
-                          <tr key={payment.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                            <td className="py-3 pl-6">
+                          <tr key={payment.id} className="text-xs hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                            <td className="py-1.5 pl-6">
                               <span className="text-slate-600 dark:text-slate-400">
                                 {camper ? `${camper.first_name} ${camper.last_name}` : "—"}
                               </span>
                             </td>
-                            <td className="py-3 text-slate-900 dark:text-white">
+                            <td className="py-1.5 font-semibold text-slate-900 dark:text-white">
                               ${Number(payment.amount).toLocaleString("es-AR")}
                             </td>
-                            <td className="py-3 text-slate-500 dark:text-slate-400">
+                            <td className="py-1.5 text-slate-500 dark:text-slate-400">
                               {methodLabels[payment.payment_method] || payment.payment_method}
                             </td>
-                            <td className="py-3 text-slate-500 dark:text-slate-400">
+                            <td className="py-1.5 text-slate-500 dark:text-slate-400">
                               {payment.reference || "—"}
                             </td>
-                            <td className="py-3 max-w-[150px]">
+                            <td className="py-1.5 max-w-[150px]">
                               {editingObs === payment.id ? (
                                 <div className="flex items-center gap-1">
                                   <input
@@ -593,13 +593,13 @@ export default function PagosPage() {
                                 </div>
                               )}
                             </td>
-                            <td className="py-3">
+                            <td className="py-1.5">
                               <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
                             </td>
-                            <td className="py-3 text-slate-500 dark:text-slate-400">
+                            <td className="py-1.5 text-slate-500 dark:text-slate-400">
                               {new Date(payment.paid_at).toLocaleDateString("es-AR")}
                             </td>
-                            <td className="py-3">
+                            <td className="py-1.5">
                               <button
                                 type="button"
                                 onClick={() => setConfirmDelete(payment.id)}
