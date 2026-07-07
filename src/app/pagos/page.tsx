@@ -127,8 +127,8 @@ export default function PagosPage() {
             .order("paid_at", { ascending: false }),
           supabase
             .from("campers")
-            .select("id, first_name, last_name, enrollments!inner(id, status)")
-            .eq("enrollments.status", "pending"),
+            .select("id, first_name, last_name, created_at, enrollments!inner(id, status)")
+            .order("created_at", { ascending: false }),
           supabase.from("settings").select("key, value"),
         ]);
 
@@ -186,8 +186,8 @@ export default function PagosPage() {
       setPayments(res.data || []);
       const campersRes = await supabase
         .from("campers")
-        .select("id, first_name, last_name, enrollments!inner(id, status)")
-        .eq("enrollments.status", "pending");
+        .select("id, first_name, last_name, created_at, enrollments!inner(id, status)")
+        .order("created_at", { ascending: false });
       setCampers(campersRes.data || []);
       setSelectedEnrollmentId("");
       setShowForm(false);
