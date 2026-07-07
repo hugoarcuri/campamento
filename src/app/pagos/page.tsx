@@ -276,35 +276,26 @@ export default function PagosPage() {
                   <h4 className="mb-3 text-sm font-semibold text-blue-800 dark:text-blue-400">
                     Elegí el plan de pago
                   </h4>
-                  <div className="space-y-2">
+                  <div className="flex flex-wrap gap-2">
                     {tiers.map((t, i) => (
-                      <label
+                      <button
                         key={i}
-                        className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 text-sm transition-colors ${
+                        type="button"
+                        onClick={() => {
+                          setSelectedTierIndex(i);
+                          setSuggestedAmount(t.price);
+                        }}
+                        className={`flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors ${
                           selectedTierIndex === i
-                            ? "border-blue-500 bg-blue-100 dark:border-blue-600 dark:bg-blue-900/40"
-                            : "border-blue-200 bg-white dark:border-blue-800 dark:bg-blue-950/30"
+                            ? "border-blue-500 bg-blue-600 text-white shadow-sm"
+                            : "border-blue-200 bg-white text-blue-700 hover:bg-blue-100 dark:border-blue-700 dark:bg-blue-950/30 dark:text-blue-300 dark:hover:bg-blue-900/40"
                         }`}
                       >
-                        <input
-                          type="radio"
-                          name="tier"
-                          checked={selectedTierIndex === i}
-                          onChange={() => {
-                            setSelectedTierIndex(i);
-                            setSuggestedAmount(t.price);
-                          }}
-                          className="h-4 w-4 text-blue-600"
-                        />
-                        <div className="flex flex-1 justify-between">
-                          <span className="font-medium text-blue-900 dark:text-blue-200">
-                            {t.label}
-                          </span>
-                          <span className="font-semibold text-blue-700 dark:text-blue-300">
-                            ${t.price.toLocaleString("es-AR")}
-                          </span>
-                        </div>
-                      </label>
+                        {t.label}
+                        <span className={`text-xs ${selectedTierIndex === i ? "text-blue-200" : "text-blue-500"}`}>
+                          ${t.price.toLocaleString("es-AR")}
+                        </span>
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -485,7 +476,6 @@ export default function PagosPage() {
                 <tr className="border-b border-slate-200 dark:border-slate-700">
                   <th className="pb-3 font-medium text-slate-500 dark:text-slate-400">Inscripto</th>
                   <th className="pb-3 font-medium text-slate-500 dark:text-slate-400">Monto</th>
-                  <th className="pb-3 font-medium text-slate-500 dark:text-slate-400">Promo</th>
                   <th className="pb-3 font-medium text-slate-500 dark:text-slate-400">Método</th>
                   <th className="pb-3 font-medium text-slate-500 dark:text-slate-400">Referencia</th>
                   <th className="pb-3 font-medium text-slate-500 dark:text-slate-400">Estado</th>
@@ -505,7 +495,7 @@ export default function PagosPage() {
                   return (
                     <Fragment key={group.enrollmentId}>
                       <tr className="bg-slate-50 dark:bg-slate-800/50">
-                        <td className="py-3 font-semibold text-slate-900 dark:text-white" colSpan={8}>
+                        <td className="py-3 font-semibold text-slate-900 dark:text-white" colSpan={7}>
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <span>{group.camperName}</span>
                             <div className="flex flex-wrap items-center gap-3 text-sm font-normal">
@@ -541,15 +531,6 @@ export default function PagosPage() {
                             </td>
                             <td className="py-3 text-slate-900 dark:text-white">
                               ${Number(payment.amount).toLocaleString("es-AR")}
-                            </td>
-                            <td className="py-3">
-                              {payment.tier_label ? (
-                                <span className="inline-block rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-600 dark:bg-blue-900/20 dark:text-blue-400">
-                                  {payment.tier_label}
-                                </span>
-                              ) : (
-                                <span className="text-xs text-slate-400">—</span>
-                              )}
                             </td>
                             <td className="py-3 text-slate-500 dark:text-slate-400">
                               {methodLabels[payment.payment_method] || payment.payment_method}
