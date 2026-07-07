@@ -45,6 +45,7 @@ export default function PagosPage() {
   const [filterMethod, setFilterMethod] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [tiers, setTiers] = useState<{ label: string; deadline: string; price: number }[]>([]);
+  const [selectedTierIndex, setSelectedTierIndex] = useState(0);
   const [paidAt, setPaidAt] = useState(() => new Date().toISOString().slice(0, 10));
   const [suggestedAmount, setSuggestedAmount] = useState(0);
   const [selectedEnrollmentId, setSelectedEnrollmentId] = useState("");
@@ -76,7 +77,7 @@ export default function PagosPage() {
     return Object.values(map);
   }, [payments, filterMethod, filterStatus]);
 
-  const selectedTier = useMemo(() => getTierForDate(paidAt, tiers), [paidAt, tiers]);
+  const selectedTier = tiers[selectedTierIndex] ?? null;
   const selectedPaid = selectedEnrollmentId ? (accumulatedByEnrollment[selectedEnrollmentId] || 0) : 0;
   const selectedTotal = selectedTier?.price ?? 0;
   const selectedRemaining = Math.max(0, selectedTotal - selectedPaid);
@@ -113,10 +114,10 @@ export default function PagosPage() {
           }))
           .filter((t) => t.deadline && t.price > 0);
         setTiers(loadedTiers);
-
-        const today = new Date().toISOString().slice(0, 10);
-        const initialTier = getTierForDate(today, loadedTiers);
-        setSuggestedAmount(initialTier?.price ?? 0);
+        if (loadedTiers.length > 0) {
+          setSelectedTierIndex(0);
+          setSuggestedAmount(loadedTiers[0].price);
+        }
 
         const now = new Date();
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
@@ -270,15 +271,38 @@ export default function PagosPage() {
             <form onSubmit={handleSubmit} className="space-y-4">
               {tiers.length > 0 && (
                 <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
-                  <h4 className="mb-2 text-sm font-semibold text-blue-800 dark:text-blue-400">
-                    Precios según fecha de pago
+                  <h4 className="mb-3 text-sm font-semibold text-blue-800 dark:text-blue-400">
+                    Elegí el plan de pago
                   </h4>
-                  <div className="space-y-1 text-sm text-blue-700 dark:text-blue-300">
+                  <div className="space-y-2">
                     {tiers.map((t, i) => (
-                      <div key={i} className="flex justify-between">
-                        <span>{t.label} (hasta {new Date(t.deadline + "T12:00:00").toLocaleDateString("es-AR")})</span>
-                        <span className="font-semibold">${t.price.toLocaleString("es-AR")}</span>
-                      </div>
+                      <label
+                        key={i}
+                        className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 text-sm transition-colors ${
+                          selectedTierIndex === i
+                            ? "border-blue-500 bg-blue-100 dark:border-blue-600 dark:bg-blue-900/40"
+                            : "border-blue-200 bg-white dark:border-blue-800 dark:bg-blue-950/30"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="tier"
+                          checked={selectedTierIndex === i}
+                          onChange={() => {
+                            setSelectedTierIndex(i);
+                            setSuggestedAmount(t.price);
+                          }}
+                          className="h-4 w-4 text-blue-600"
+                        />
+                        <div className="flex flex-1 justify-between">
+                          <span className="font-medium text-blue-900 dark:text-blue-200">
+                            {t.label}
+                          </span>
+                          <span className="font-semibold text-blue-700 dark:text-blue-300">
+                            ${t.price.toLocaleString("es-AR")}
+                          </span>
+                        </div>
+                      </label>
                     ))}
                   </div>
                 </div>
@@ -345,20 +369,10 @@ export default function PagosPage() {
                     type="date"
                     name="paid_at"
                     value={paidAt}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setPaidAt(val);
-                      const tier = getTierForDate(val, tiers);
-                      setSuggestedAmount(tier?.price ?? 0);
-                    }}
+                    onChange={(e) => setPaidAt(e.target.value)}
                     required
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                   />
-                  {selectedTier && (
-                    <p className="mt-1 text-xs text-blue-600 dark:text-blue-400">
-                      Corresponde a: {selectedTier.label} — ${selectedTier.price.toLocaleString("es-AR")}
-                    </p>
-                  )}
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
