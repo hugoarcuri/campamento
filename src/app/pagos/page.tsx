@@ -118,27 +118,26 @@ export default function PagosPage() {
   const selectedRemaining = Math.max(0, selectedTotal - selectedPaid);
 
   useEffect(() => {
+    let cancelled = false;
     async function load() {
       try {
         const supabase = createClient();
-        const [paymentsRes, campersRes, enrollmentsRes, settingsRes] = await Promise.all([
+        const [paymentsRes, campersRes, settingsRes] = await Promise.all([
           supabase
             .from("payments")
             .select("*, enrollment:enrollments(camper_id, camp_name, status, camper:campers(first_name, last_name))")
             .order("paid_at", { ascending: false }),
-          supabase.from("campers").select("*").order("created_at", { ascending: false }),
-          supabase.from("enrollments").select("*").order("registered_at", { ascending: false }),
+          supabase
+            .from("campers")
+            .select("id, first_name, last_name, enrollments(id)")
+            .order("created_at", { ascending: false }),
           supabase.from("settings").select("key, value"),
         ]);
 
+        if (cancelled) return;
         setPayments(paymentsRes.data || []);
-
-        const camperMap: Record<string, any> = {};
-        (campersRes.data || []).forEach((c: any) => { camperMap[c.id] = c; });
-        const enrollmentsWithCamper = (enrollmentsRes.data || [])
-          .map((enr: any) => ({ ...enr, camper: camperMap[enr.camper_id] || null }))
-          .filter((enr: any) => enr.camper);
-        setCampers(enrollmentsWithCamper);
+        setCampers(campersRes.data || []);
+        console.log("Payments loaded:", paymentsRes.count, "Campers loaded:", campersRes.count);
 
         const settingsMap: Record<string, string> = {};
         (settingsRes.data || []).forEach((r: any) => { settingsMap[r.key] = r.value; });
@@ -158,9 +157,10 @@ export default function PagosPage() {
       } catch (err) {
         console.error("Error loading payments:", err);
       }
-      setLoading(false);
+      if (!cancelled) setLoading(false);
     }
     load();
+    return () => { cancelled = true; };
   }, []);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -184,18 +184,12 @@ export default function PagosPage() {
         observaciones: (formData.get("observaciones") as string) || null,
       });
       if (insertError) { setError(insertError.message); setIsPending(false); return; }
-      const [paymentsReload, campersReload, enrollmentsReload] = await Promise.all([
+      const [paymentsReload, campersReload] = await Promise.all([
         supabase.from("payments").select("*, enrollment:enrollments(camper_id, camp_name, status, camper:campers(first_name, last_name))").order("paid_at", { ascending: false }),
-        supabase.from("campers").select("*").order("created_at", { ascending: false }),
-        supabase.from("enrollments").select("*").order("registered_at", { ascending: false }),
+        supabase.from("campers").select("id, first_name, last_name, enrollments(id)").order("created_at", { ascending: false }),
       ]);
       setPayments(paymentsReload.data || []);
-      const camperMap: Record<string, any> = {};
-      (campersReload.data || []).forEach((c: any) => { camperMap[c.id] = c; });
-      const enrollmentsWithCamper = (enrollmentsReload.data || [])
-        .map((enr: any) => ({ ...enr, camper: camperMap[enr.camper_id] || null }))
-        .filter((enr: any) => enr.camper);
-      setCampers(enrollmentsWithCamper);
+      setCampers(campersReload.data || []);
       setSelectedEnrollmentId("");
       setShowForm(false);
       setIsPending(false);
@@ -328,10 +322,10 @@ export default function PagosPage() {
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                   >
                     <option value="">Seleccionar...</option>
-                    {campers.map((enr: any) => {
-                      const camper = enr.camper;
-                      if (!camper) return null;
-                      return <option key={enr.id} value={enr.id}>{camper.first_name} {camper.last_name}</option>;
+                    {campers.map((camper: any) => {
+                      const enrollment = camper.enrollments?.[0];
+                      if (!enrollment) return null;
+                      return <option key={enrollment.id} value={enrollment.id}>{camper.first_name} {camper.last_name}</option>;
                     })}
                   </select>
                 </div>
