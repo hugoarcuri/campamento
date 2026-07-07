@@ -24,17 +24,29 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: "npm"
+
+      - name: Cache Next.js build
+        uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: ${{ runner.os }}-next-${{ hashFiles('package-lock.json') }}
 
       - name: Install dependencies
         run: npm ci
 
+      - name: Lint
+        run: npm run lint -- --max-warnings=20
+
       - name: Build with Next.js
         run: npm run build
         env:
-          NEXT_PUBLIC_SUPABASE_URL: https://shfpmlaezznlbgcrvxnv.supabase.co
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNoZnBtbGFlenpubGJnY3J2eG52Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMzNDg4MDgsImV4cCI6MjA5ODkyNDgwOH0.D_YEawFAqKX1GpiZe4fsg5sHUFJFqSfdJaTD_VpxCSc
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+
+      - name: Show build output
+        run: du -sh out/ && find out/ -name "*.html" | wc -l
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
