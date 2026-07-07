@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Card } from "@/components/ui/Card";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { useEffect, useState, useMemo } from "react";
@@ -219,7 +220,7 @@ export default function InscriptosPage() {
       <Card>
         {loading ? (
           <div className="flex justify-center py-12">
-            <p className="text-sm text-slate-500">Cargando...</p>
+            <LoadingSpinner />
           </div>
         ) : filteredCampers.length === 0 ? (
           <EmptyState

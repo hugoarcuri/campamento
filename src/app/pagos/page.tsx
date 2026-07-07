@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { Accordion, AccordionItem } from "@/components/ui/Accordion";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { ActionsMenu } from "@/components/ui/ActionsMenu";
@@ -393,7 +394,7 @@ export default function PagosPage() {
 
       {/* Lista de pagos en Acordeón */}
       {loading ? (
-        <div className="flex justify-center py-12"><p className="text-sm text-slate-500">Cargando...</p></div>
+        <LoadingSpinner className="py-12" />
       ) : payments.length === 0 ? (
         <Card><EmptyState icon={<CreditCard className="h-8 w-8 text-slate-400" />} title="No hay pagos registrados" description="Los pagos aparecerán aquí una vez que se registren." /></Card>
       ) : groupedByCamper.length === 0 ? (

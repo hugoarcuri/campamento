@@ -5,6 +5,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card, CardHeader, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { createClient } from "@/lib/supabase/client";
 
 export default function ConfiguracionPage() {
@@ -68,9 +69,7 @@ export default function ConfiguracionPage() {
     return (
       <AppShell>
         <PageHeader title="Configuración" description="Ajustes generales del sistema" />
-        <div className="flex justify-center py-12">
-          <p className="text-sm text-slate-500">Cargando...</p>
-        </div>
+        <LoadingSpinner className="py-12" />
       </AppShell>
     );
   }

@@ -7,7 +7,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <Sidebar />
       <div className="lg:pl-64">
         <Header />
-        <main className="p-6">{children}</main>
+        <main className="animate-fade-in p-6">{children}</main>
       </div>
     </div>
   );

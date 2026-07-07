@@ -12,6 +12,7 @@ import {
   Settings,
   Menu,
   X,
+  ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -106,7 +107,16 @@ export function Sidebar() {
 
         {/* Footer */}
         <div className="border-t border-red-700/50 p-4">
-          <p className="text-xs text-red-300">Campamento La Lucila &copy; 2026</p>
+          <p className="mb-2 text-xs text-red-300">Campamento La Lucila &copy; 2026</p>
+          <a
+            href="/campamento/inscribirse"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 rounded-lg bg-red-700/40 px-2.5 py-1.5 text-xs text-red-200 transition-colors hover:bg-red-700/60 hover:text-white"
+          >
+            <ExternalLink className="h-3 w-3" />
+            Formulario público
+          </a>
         </div>
       </aside>
     </>

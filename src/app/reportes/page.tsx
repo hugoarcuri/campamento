@@ -8,6 +8,7 @@ import { Card, CardHeader, CardContent } from "@/components/ui/Card";
 import { StatCard } from "@/components/ui/StatCard";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { createClient } from "@/lib/supabase/client";
 import * as XLSX from "xlsx";
 
@@ -135,7 +136,7 @@ export default function ReportesPage() {
     return (
       <AppShell>
         <PageHeader title="Reportes" description="Estadísticas y reportes del campamento" />
-        <div className="flex justify-center py-12"><p className="text-sm text-slate-500">Cargando...</p></div>
+        <LoadingSpinner className="py-12" />
       </AppShell>
     );
   }
