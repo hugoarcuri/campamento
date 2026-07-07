@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS campers (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   first_name TEXT NOT NULL,
   last_name TEXT NOT NULL,
+  dni TEXT,
   email TEXT NOT NULL,
   phone TEXT NOT NULL,
   age INTEGER NOT NULL CHECK (age >= 12),
@@ -52,6 +53,7 @@ DO $$ BEGIN
   ALTER TABLE payments ADD COLUMN IF NOT EXISTS tier_price DECIMAL(10,2);
   ALTER TABLE payments ADD COLUMN IF NOT EXISTS observaciones TEXT;
   ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS observaciones TEXT;
+  ALTER TABLE campers ADD COLUMN IF NOT EXISTS dni TEXT;
 EXCEPTION WHEN others THEN NULL;
 END $$;
 

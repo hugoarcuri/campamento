@@ -22,7 +22,7 @@ export default function InscriptosPage() {
   const [editingObs, setEditingObs] = useState<string | null>(null);
   const [obsText, setObsText] = useState("");
   const [editingCamper, setEditingCamper] = useState<any | null>(null);
-  const [editForm, setEditForm] = useState({ first_name: "", last_name: "", email: "", phone: "", age: 0, gender: "", church: "", medical_notes: "", emergency_contact: "", emergency_phone: "" });
+  const [editForm, setEditForm] = useState({ first_name: "", last_name: "", dni: "", email: "", phone: "", age: 0, gender: "", church: "", medical_notes: "", emergency_contact: "", emergency_phone: "" });
 
   useEffect(() => {
     async function loadCampers() {
@@ -129,6 +129,7 @@ export default function InscriptosPage() {
     setEditForm({
       first_name: camper.first_name,
       last_name: camper.last_name,
+      dni: camper.dni || "",
       email: camper.email || "",
       phone: camper.phone || "",
       age: camper.age || 0,
@@ -157,6 +158,7 @@ export default function InscriptosPage() {
       const remaining = c.balance ? c.balance.tierPrice - c.balance.paid : null;
       return {
         Nombre: `${c.first_name} ${c.last_name}`,
+        DNI: c.dni || "",
         Email: c.email,
         Teléfono: c.phone,
         Edad: c.age,
@@ -237,6 +239,7 @@ export default function InscriptosPage() {
                 <tr className="border-b border-slate-200 dark:border-slate-700">
                   <th className="pb-3 pr-2 font-medium text-slate-500 dark:text-slate-400"></th>
                   <th className="pb-3 font-medium text-slate-500 dark:text-slate-400">Nombre</th>
+                  <th className="pb-3 font-medium text-slate-500 dark:text-slate-400">DNI</th>
                   <th className="pb-3 font-medium text-slate-500 dark:text-slate-400">Contacto</th>
                   <th className="pb-3 font-medium text-slate-500 dark:text-slate-400">Edad</th>
                   <th className="pb-3 font-medium text-slate-500 dark:text-slate-400">Iglesia</th>
@@ -283,6 +286,9 @@ export default function InscriptosPage() {
                         <p className="text-xs text-slate-500 dark:text-slate-400">
                           {camper.gender === "M" ? "Masculino" : camper.gender === "F" ? "Femenino" : "Otro"}
                         </p>
+                      </td>
+                      <td className="py-3 text-sm text-slate-600 dark:text-slate-300">
+                        {camper.dni || "—"}
                       </td>
                       <td className="py-3">
                         <div className="space-y-1">
@@ -379,6 +385,7 @@ export default function InscriptosPage() {
               {[
                 { label: "Nombre", key: "first_name" },
                 { label: "Apellido", key: "last_name" },
+                { label: "DNI", key: "dni" },
                 { label: "Email", key: "email", type: "email" },
                 { label: "Teléfono", key: "phone" },
                 { label: "Edad", key: "age", type: "number" },
