@@ -183,6 +183,58 @@ export default function ConfiguracionPage() {
                   </select>
                 </div>
               </div>
+
+              <div className="border-t border-slate-200 pt-6 dark:border-slate-700">
+                <h3 className="mb-4 text-sm font-semibold text-slate-900 dark:text-white">
+                  Precios por Fecha de Pago
+                </h3>
+                <div className="space-y-6">
+                  {[1, 2, 3].map((tier) => (
+                    <div key={tier} className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/50">
+                      <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                        Tramo {tier}
+                      </h4>
+                      <div className="grid gap-4 sm:grid-cols-3">
+                        <div>
+                          <label className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">
+                            Etiqueta
+                          </label>
+                          <input
+                            type="text"
+                            name={`tier${tier}_label`}
+                            defaultValue={settings[`tier${tier}_label`] || ""}
+                            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                            placeholder="Ej: Hasta Septiembre"
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">
+                            Fecha Límite
+                          </label>
+                          <input
+                            type="date"
+                            name={`tier${tier}_deadline`}
+                            defaultValue={settings[`tier${tier}_deadline`] || ""}
+                            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">
+                            Precio ($)
+                          </label>
+                          <input
+                            type="number"
+                            name={`tier${tier}_price`}
+                            defaultValue={settings[`tier${tier}_price`] || "0"}
+                            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               <div className="flex justify-end">
                 <Button type="submit" disabled={saving}>
                   {saving ? "Guardando..." : "Guardar Cambios"}

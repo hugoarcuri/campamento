@@ -56,7 +56,16 @@ INSERT INTO settings (key, value) VALUES
   ('start_date', ''),
   ('end_date', ''),
   ('registration_fee', '0'),
-  ('currency', 'ARS')
+  ('currency', 'ARS'),
+  ('tier1_label', 'Hasta Septiembre'),
+  ('tier1_deadline', '2026-09-30'),
+  ('tier1_price', '230000'),
+  ('tier2_label', 'Hasta Noviembre'),
+  ('tier2_deadline', '2026-11-30'),
+  ('tier2_price', '270000'),
+  ('tier3_label', 'Hasta Enero'),
+  ('tier3_deadline', '2027-01-31'),
+  ('tier3_price', '320000')
 ON CONFLICT (key) DO NOTHING;
 
 -- Índices

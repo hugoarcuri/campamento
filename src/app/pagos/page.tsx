@@ -25,6 +25,15 @@ const statusConfig: Record<string, { label: string; variant: "success" | "warnin
   refunded: { label: "Reembolsado", variant: "info" },
 };
 
+function getTierForDate(dateStr: string, tiers: { label: string; deadline: string; price: number }[]) {
+  if (!dateStr || tiers.length === 0) return null;
+  const d = new Date(dateStr + "T12:00:00");
+  for (const t of tiers) {
+    if (d <= new Date(t.deadline + "T23:59:59")) return t;
+  }
+  return tiers[tiers.length - 1] ?? null;
+}
+
 export default function PagosPage() {
   const [payments, setPayments] = useState<any[]>([]);
   const [campers, setCampers] = useState<any[]>([]);
@@ -35,13 +44,16 @@ export default function PagosPage() {
   const [error, setError] = useState<string | null>(null);
   const [filterMethod, setFilterMethod] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
+  const [tiers, setTiers] = useState<{ label: string; deadline: string; price: number }[]>([]);
+  const [paidAt, setPaidAt] = useState(() => new Date().toISOString().slice(0, 10));
+  const [suggestedAmount, setSuggestedAmount] = useState(0);
 
   useEffect(() => {
     async function load() {
       try {
         const supabase = createClient();
 
-        const [paymentsRes, campersForPaymentRes] = await Promise.all([
+        const [paymentsRes, campersForPaymentRes, settingsRes] = await Promise.all([
           supabase
             .from("payments")
             .select("*, enrollment:enrollments(camper_id, camp_name, status, camper:campers(first_name, last_name))")
@@ -50,11 +62,28 @@ export default function PagosPage() {
             .from("campers")
             .select("id, first_name, last_name, enrollments!inner(id, status)")
             .eq("enrollments.status", "pending"),
+          supabase.from("settings").select("key, value"),
         ]);
 
         const paymentsData = paymentsRes.data || [];
         setPayments(paymentsData);
         setCampers(campersForPaymentRes.data || []);
+
+        const settingsMap: Record<string, string> = {};
+        (settingsRes.data || []).forEach((r: any) => { settingsMap[r.key] = r.value; });
+
+        const loadedTiers = [1, 2, 3]
+          .map((t) => ({
+            label: settingsMap[`tier${t}_label`] || "",
+            deadline: settingsMap[`tier${t}_deadline`] || "",
+            price: Number(settingsMap[`tier${t}_price`]) || 0,
+          }))
+          .filter((t) => t.deadline && t.price > 0);
+        setTiers(loadedTiers);
+
+        const today = new Date().toISOString().slice(0, 10);
+        const initialTier = getTierForDate(today, loadedTiers);
+        setSuggestedAmount(initialTier?.price ?? 0);
 
         const now = new Date();
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
@@ -86,6 +115,7 @@ export default function PagosPage() {
       const formData = new FormData(e.currentTarget);
       const supabase = createClient();
 
+      const paidDate = (formData.get("paid_at") as string) || new Date().toISOString().slice(0, 10);
       const { error: insertError } = await supabase.from("payments").insert({
         enrollment_id: formData.get("enrollment_id") as string,
         amount: Number(formData.get("amount")),
@@ -93,6 +123,7 @@ export default function PagosPage() {
         payment_method: formData.get("payment_method") as string,
         status: (formData.get("status") as string) || "completed",
         reference: (formData.get("reference") as string) || null,
+        paid_at: new Date(paidDate + "T12:00:00").toISOString(),
       });
 
       if (insertError) {
@@ -181,6 +212,22 @@ export default function PagosPage() {
               </div>
             )}
             <form onSubmit={handleSubmit} className="space-y-4">
+              {tiers.length > 0 && (
+                <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
+                  <h4 className="mb-2 text-sm font-semibold text-blue-800 dark:text-blue-400">
+                    Precios según fecha de pago
+                  </h4>
+                  <div className="space-y-1 text-sm text-blue-700 dark:text-blue-300">
+                    {tiers.map((t, i) => (
+                      <div key={i} className="flex justify-between">
+                        <span>{t.label} (hasta {new Date(t.deadline + "T12:00:00").toLocaleDateString("es-AR")})</span>
+                        <span className="font-semibold">${t.price.toLocaleString("es-AR")}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
                   Inscripto *
@@ -205,15 +252,42 @@ export default function PagosPage() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Fecha de Pago *
+                  </label>
+                  <input
+                    type="date"
+                    name="paid_at"
+                    value={paidAt}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setPaidAt(val);
+                      const tier = getTierForDate(val, tiers);
+                      setSuggestedAmount(tier?.price ?? 0);
+                    }}
+                    required
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                  />
+                  {(() => {
+                    const tier = getTierForDate(paidAt, tiers);
+                    return tier ? (
+                      <p className="mt-1 text-xs text-blue-600 dark:text-blue-400">
+                        Corresponde a: {tier.label} — ${tier.price.toLocaleString("es-AR")}
+                      </p>
+                    ) : null;
+                  })()}
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
                     Monto *
                   </label>
                   <input
                     type="number"
                     name="amount"
+                    value={suggestedAmount}
+                    onChange={(e) => setSuggestedAmount(Number(e.target.value))}
                     required
-                    step="0.01"
+                    step="1"
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                    placeholder="0.00"
                   />
                 </div>
                 <div>
