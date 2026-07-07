@@ -1,15 +1,17 @@
 "use client";
 
-import { useEffect, useState, useMemo, Fragment } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { AppShell } from "@/components/layout/AppShell";
-import { CreditCard, DollarSign, Clock, CheckCircle, Trash2, FileDown, Pencil, Check, X } from "lucide-react";
+import { CreditCard, DollarSign, Clock, CheckCircle, FileDown, Pencil, Check, X, Eye, Trash2, Search } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { Card, CardHeader, CardContent } from "@/components/ui/Card";
+import { Card, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { StatCard } from "@/components/ui/StatCard";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { Accordion, AccordionItem } from "@/components/ui/Accordion";
+import { ProgressBar } from "@/components/ui/ProgressBar";
+import { ActionsMenu } from "@/components/ui/ActionsMenu";
 import { createClient } from "@/lib/supabase/client";
 import * as XLSX from "xlsx";
 
@@ -46,6 +48,7 @@ export default function PagosPage() {
   const [error, setError] = useState<string | null>(null);
   const [filterMethod, setFilterMethod] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
+  const [search, setSearch] = useState("");
   const [tiers, setTiers] = useState<{ label: string; deadline: string; price: number }[]>([]);
   const [paidAt, setPaidAt] = useState(() => new Date().toISOString().slice(0, 10));
   const [suggestedAmount, setSuggestedAmount] = useState(0);
@@ -54,7 +57,22 @@ export default function PagosPage() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [editingObs, setEditingObs] = useState<string | null>(null);
   const [obsText, setObsText] = useState("");
+  const [viewPayment, setViewPayment] = useState<any | null>(null);
+  const formRef = useRef<HTMLDivElement>(null);
 
+  // Stats from payments
+  const statsData = useMemo(() => {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const completed = payments.filter((p) => p.status === "completed");
+    return {
+      total_revenue: completed.reduce((s, p) => s + Number(p.amount), 0),
+      total_pending: payments.filter((p) => p.status === "pending").reduce((s, p) => s + Number(p.amount), 0),
+      total_this_month: completed.filter((p) => p.paid_at >= startOfMonth).reduce((s, p) => s + Number(p.amount), 0),
+    };
+  }, [payments]);
+
+  // Accumulated by enrollment
   const accumulatedByEnrollment = useMemo(() => {
     const map: Record<string, number> = {};
     for (const p of payments) {
@@ -65,11 +83,23 @@ export default function PagosPage() {
     return map;
   }, [payments]);
 
+  // Group by camper with search + filter
   const groupedByCamper = useMemo(() => {
     const map: Record<string, { camperName: string; enrollmentId: string; payments: any[] }> = {};
+    const q = search.toLowerCase().trim();
+
     for (const p of payments) {
       if (filterMethod && p.payment_method !== filterMethod) continue;
       if (filterStatus && p.status !== filterStatus) continue;
+
+      // Real-time search by name or reference
+      if (q) {
+        const camper = p.enrollment?.camper;
+        const name = camper ? `${camper.first_name} ${camper.last_name}`.toLowerCase() : "";
+        const ref = (p.reference || "").toLowerCase();
+        if (!name.includes(q) && !ref.includes(q)) continue;
+      }
+
       const camper = p.enrollment?.camper;
       const name = camper ? `${camper.first_name} ${camper.last_name}` : "—";
       const eid = p.enrollment_id;
@@ -79,7 +109,7 @@ export default function PagosPage() {
       map[eid].payments.push(p);
     }
     return Object.values(map);
-  }, [payments, filterMethod, filterStatus]);
+  }, [payments, filterMethod, filterStatus, search]);
 
   const selectedTier = useMemo(() => getTierForDate(paidAt, tiers), [paidAt, tiers]);
   const selectedPaid = selectedEnrollmentId ? (accumulatedByEnrollment[selectedEnrollmentId] || 0) : 0;
@@ -90,7 +120,6 @@ export default function PagosPage() {
     async function load() {
       try {
         const supabase = createClient();
-
         const [paymentsRes, campersForPaymentRes, settingsRes] = await Promise.all([
           supabase
             .from("payments")
@@ -103,8 +132,7 @@ export default function PagosPage() {
           supabase.from("settings").select("key, value"),
         ]);
 
-        const paymentsData = paymentsRes.data || [];
-        setPayments(paymentsData);
+        setPayments(paymentsRes.data || []);
         setCampers(campersForPaymentRes.data || []);
 
         const settingsMap: Record<string, string> = {};
@@ -120,23 +148,8 @@ export default function PagosPage() {
         setTiers(loadedTiers);
         if (loadedTiers.length > 0) {
           const today = new Date().toISOString().slice(0, 10);
-          const initialTier = getTierForDate(today, loadedTiers);
-          setSuggestedAmount(initialTier?.price ?? 0);
+          setSuggestedAmount(getTierForDate(today, loadedTiers)?.price ?? 0);
         }
-
-        const now = new Date();
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-        const total_revenue = paymentsData
-          .filter((p: any) => p.status === "completed")
-          .reduce((sum: number, p: any) => sum + Number(p.amount), 0);
-        const total_pending = paymentsData
-          .filter((p: any) => p.status === "pending")
-          .reduce((sum: number, p: any) => sum + Number(p.amount), 0);
-        const total_this_month = paymentsData
-          .filter((p: any) => p.status === "completed" && p.paid_at >= startOfMonth)
-          .reduce((sum: number, p: any) => sum + Number(p.amount), 0);
-
-        setStats({ total_revenue, total_pending, total_this_month });
       } catch (err) {
         console.error("Error loading payments:", err);
       }
@@ -149,11 +162,9 @@ export default function PagosPage() {
     e.preventDefault();
     setIsPending(true);
     setError(null);
-
     try {
       const formData = new FormData(e.currentTarget);
       const supabase = createClient();
-
       const paidDate = (formData.get("paid_at") as string) || new Date().toISOString().slice(0, 10);
       const { error: insertError } = await supabase.from("payments").insert({
         enrollment_id: formData.get("enrollment_id") as string,
@@ -167,37 +178,18 @@ export default function PagosPage() {
         tier_price: selectedTier?.price ?? null,
         observaciones: (formData.get("observaciones") as string) || null,
       });
-
-      if (insertError) {
-        setError(insertError.message);
-        setIsPending(false);
-        return;
-      }
-
-      const [paymentsRes, campersForPaymentRes] = await Promise.all([
-        supabase
-          .from("payments")
-          .select("*, enrollment:enrollments(camper_id, camp_name, status, camper:campers(first_name, last_name))")
-          .order("paid_at", { ascending: false }),
-        supabase
-          .from("campers")
-          .select("id, first_name, last_name, enrollments!inner(id, status)")
-          .eq("enrollments.status", "pending"),
-      ]);
-
-      const paymentsData = paymentsRes.data || [];
-      setPayments(paymentsData);
-      setCampers(campersForPaymentRes.data || []);
+      if (insertError) { setError(insertError.message); setIsPending(false); return; }
+      const res = await supabase
+        .from("payments")
+        .select("*, enrollment:enrollments(camper_id, camp_name, status, camper:campers(first_name, last_name))")
+        .order("paid_at", { ascending: false });
+      setPayments(res.data || []);
+      const campersRes = await supabase
+        .from("campers")
+        .select("id, first_name, last_name, enrollments!inner(id, status)")
+        .eq("enrollments.status", "pending");
+      setCampers(campersRes.data || []);
       setSelectedEnrollmentId("");
-
-      const now = new Date();
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-      setStats({
-        total_revenue: paymentsData.filter((p: any) => p.status === "completed").reduce((s: number, p: any) => s + Number(p.amount), 0),
-        total_pending: paymentsData.filter((p: any) => p.status === "pending").reduce((s: number, p: any) => s + Number(p.amount), 0),
-        total_this_month: paymentsData.filter((p: any) => p.status === "completed" && p.paid_at >= startOfMonth).reduce((s: number, p: any) => s + Number(p.amount), 0),
-      });
-
       setShowForm(false);
       setIsPending(false);
     } catch (err) {
@@ -210,23 +202,8 @@ export default function PagosPage() {
     setDeletingId(paymentId);
     try {
       const supabase = createClient();
-      const { error: delError } = await supabase.from("payments").delete().eq("id", paymentId);
-      if (delError) {
-        setError(delError.message);
-        setDeletingId(null);
-        return;
-      }
-      setPayments((prev) => {
-        const updated = prev.filter((p) => p.id !== paymentId);
-        const now = new Date();
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-        setStats({
-          total_revenue: updated.filter((p) => p.status === "completed").reduce((s, p) => s + Number(p.amount), 0),
-          total_pending: updated.filter((p) => p.status === "pending").reduce((s, p) => s + Number(p.amount), 0),
-          total_this_month: updated.filter((p) => p.status === "completed" && p.paid_at >= startOfMonth).reduce((s, p) => s + Number(p.amount), 0),
-        });
-        return updated;
-      });
+      await supabase.from("payments").delete().eq("id", paymentId);
+      setPayments((prev) => prev.filter((p) => p.id !== paymentId));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al eliminar");
     }
@@ -266,7 +243,7 @@ export default function PagosPage() {
           <div className="flex gap-2">
             <Button variant="secondary" onClick={exportToExcel}>
               <FileDown className="h-4 w-4" />
-              Exportar
+              <span className="hidden sm:inline">Exportar</span>
             </Button>
             <Button onClick={() => setShowForm(!showForm)}>
               {showForm ? "Cancelar" : "+ Registrar Pago"}
@@ -275,152 +252,85 @@ export default function PagosPage() {
         }
       />
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-3">
-        <StatCard
-          title="Total Recaudado"
-          value={`$${stats.total_revenue.toLocaleString("es-AR")}`}
-          icon={DollarSign}
-          description="Pagos completados"
-        />
-        <StatCard
-          title="Pendiente"
-          value={`$${stats.total_pending.toLocaleString("es-AR")}`}
-          icon={Clock}
-          description="Esperando pago"
-        />
-        <StatCard
-          title="Este Mes"
-          value={`$${stats.total_this_month.toLocaleString("es-AR")}`}
-          icon={CheckCircle}
-          description="Ingresos del mes"
-        />
+      {/* KPI Cards - compactas (30% menos altura) */}
+      <div className="mb-6 grid grid-cols-3 gap-3 sm:gap-4">
+        <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-900/20">
+            <DollarSign className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs text-slate-500 dark:text-slate-400">Total</p>
+            <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
+              ${statsData.total_revenue.toLocaleString("es-AR")}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-900/20">
+            <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs text-slate-500 dark:text-slate-400">Pendiente</p>
+            <p className="text-sm font-bold text-amber-600 truncate">
+              ${statsData.total_pending.toLocaleString("es-AR")}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/20">
+            <CheckCircle className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs text-slate-500 dark:text-slate-400">Este mes</p>
+            <p className="text-sm font-bold text-blue-600 truncate">
+              ${statsData.total_this_month.toLocaleString("es-AR")}
+            </p>
+          </div>
+        </div>
       </div>
 
+      {/* Formulario de pago */}
       {showForm && (
-        <Card className="mb-6">
-          <CardHeader>Registrar Pago</CardHeader>
-          <CardContent>
+        <Card className="mb-6" ref={formRef}>
+          <CardContent className="p-4 sm:p-6">
+            <h3 className="mb-4 text-base font-semibold text-slate-900 dark:text-white">Registrar Pago</h3>
             {error && (
-              <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
-                {error}
-              </div>
+              <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">{error}</div>
             )}
             <form onSubmit={handleSubmit} className="space-y-4">
               {tiers.length > 0 && (
-                <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
-                  <h4 className="mb-2 text-sm font-semibold text-blue-800 dark:text-blue-400">
-                    Precios según fecha de pago
-                  </h4>
-                  <div className="space-y-1 text-sm text-blue-700 dark:text-blue-300">
-                    {tiers.map((t, i) => (
-                      <div key={i} className="flex justify-between">
-                        <span>{t.label} (hasta {new Date(t.deadline + "T12:00:00").toLocaleDateString("es-AR")})</span>
-                        <span className="font-semibold">${t.price.toLocaleString("es-AR")}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
-                  Inscripto *
-                </label>
-                <select
-                  name="enrollment_id"
-                  required
-                  value={selectedEnrollmentId}
-                  onChange={(e) => setSelectedEnrollmentId(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                >
-                  <option value="">Seleccionar...</option>
-                  {campers.map((camper: any) => {
-                    const enrollment = camper.enrollments?.[0];
-                    if (!enrollment) return null;
-                    return (
-                      <option key={enrollment.id} value={enrollment.id}>
-                        {camper.first_name} {camper.last_name}
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
-
-              {selectedEnrollmentId && selectedTier && (
-                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-800 dark:bg-emerald-900/20">
-                  <h4 className="mb-2 text-sm font-semibold text-emerald-800 dark:text-emerald-400">
-                    Resumen de {campers.find((c: any) => c.enrollments?.[0]?.id === selectedEnrollmentId)?.first_name ?? "—"}
-                  </h4>
-                  <div className="grid grid-cols-3 gap-4 text-sm">
-                    <div>
-                      <p className="text-emerald-600 dark:text-emerald-400">Total del programa</p>
-                      <p className="text-lg font-bold text-emerald-800 dark:text-emerald-200">
-                        ${selectedTotal.toLocaleString("es-AR")}
-                      </p>
+                <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm dark:border-blue-800 dark:bg-blue-900/20">
+                  <p className="mb-1.5 text-xs font-semibold text-blue-800 dark:text-blue-400">Precios según fecha</p>
+                  {tiers.map((t, i) => (
+                    <div key={i} className="flex justify-between text-xs text-blue-700 dark:text-blue-300">
+                      <span>{t.label}</span>
+                      <span className="font-semibold">${t.price.toLocaleString("es-AR")}</span>
                     </div>
-                    <div>
-                      <p className="text-emerald-600 dark:text-emerald-400">Pagado</p>
-                      <p className="text-lg font-bold text-emerald-800 dark:text-emerald-200">
-                        ${selectedPaid.toLocaleString("es-AR")}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-emerald-600 dark:text-emerald-400">Saldo restante</p>
-                      <p className="text-lg font-bold text-emerald-800 dark:text-emerald-200">
-                        ${selectedRemaining.toLocaleString("es-AR")}
-                      </p>
-                    </div>
-                  </div>
+                  ))}
                 </div>
               )}
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
-                    Fecha de Pago *
-                  </label>
-                  <input
-                    type="date"
-                    name="paid_at"
-                    value={paidAt}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setPaidAt(val);
-                      const tier = getTierForDate(val, tiers);
-                      setSuggestedAmount(tier?.price ?? 0);
-                    }}
-                    required
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                  />
-                  {selectedTier && (
-                    <p className="mt-1 text-xs text-blue-600 dark:text-blue-400">
-                      Corresponde a: {selectedTier.label} — ${selectedTier.price.toLocaleString("es-AR")}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
-                    Monto *
-                  </label>
-                  <input
-                    type="number"
-                    name="amount"
-                    value={suggestedAmount}
-                    onChange={(e) => setSuggestedAmount(Number(e.target.value))}
-                    required
-                    step="1"
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
-                    Método de Pago *
-                  </label>
+                  <label className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-300">Inscripto *</label>
                   <select
-                    name="payment_method"
+                    name="enrollment_id"
                     required
+                    value={selectedEnrollmentId}
+                    onChange={(e) => setSelectedEnrollmentId(e.target.value)}
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                   >
+                    <option value="">Seleccionar...</option>
+                    {campers.map((camper: any) => {
+                      const enrollment = camper.enrollments?.[0];
+                      if (!enrollment) return null;
+                      return <option key={enrollment.id} value={enrollment.id}>{camper.first_name} {camper.last_name}</option>;
+                    })}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-300">Método de Pago *</label>
+                  <select name="payment_method" required className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white">
                     <option value="">Seleccionar...</option>
                     <option value="cash">Efectivo</option>
                     <option value="transfer">Transferencia</option>
@@ -429,209 +339,232 @@ export default function PagosPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
-                    Referencia
-                  </label>
-                  <input
-                    type="text"
-                    name="reference"
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                    placeholder="N° de recibo, transferencia..."
-                  />
+                  <label className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-300">Fecha de Pago *</label>
+                  <input type="date" name="paid_at" value={paidAt} onChange={(e) => { setPaidAt(e.target.value); setSuggestedAmount(getTierForDate(e.target.value, tiers)?.price ?? 0); }} required className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
-                    Observaciones
-                  </label>
-                  <input
-                    type="text"
-                    name="observaciones"
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                    placeholder="Aclaraciones..."
-                  />
+                  <label className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-300">Monto *</label>
+                  <input type="number" name="amount" value={suggestedAmount} onChange={(e) => setSuggestedAmount(Number(e.target.value))} required step="1" className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-300">Referencia</label>
+                  <input type="text" name="reference" className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white" placeholder="N° de recibo..." />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-700 dark:text-slate-300">Observaciones</label>
+                  <input type="text" name="observaciones" className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white" placeholder="Aclaraciones..." />
                 </div>
               </div>
               <div className="flex justify-end">
-                <Button type="submit" disabled={isPending}>
-                  {isPending ? "Guardando..." : "Registrar Pago"}
-                </Button>
+                <Button type="submit" disabled={isPending}>{isPending ? "Guardando..." : "Registrar Pago"}</Button>
               </div>
             </form>
           </CardContent>
         </Card>
       )}
 
-      <Card className="mb-6">
-        <div className="flex flex-wrap gap-3">
-          <select
-            value={filterMethod}
-            onChange={(e) => setFilterMethod(e.target.value)}
-            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-          >
-            <option value="">Todos los métodos</option>
-            <option value="cash">Efectivo</option>
-            <option value="transfer">Transferencia</option>
-            <option value="card">Tarjeta</option>
-            <option value="other">Otro</option>
-          </select>
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-          >
-            <option value="">Todos los estados</option>
-            <option value="pending">Pendiente</option>
-            <option value="completed">Completado</option>
-            <option value="failed">Fallido</option>
-            <option value="refunded">Reembolsado</option>
-          </select>
-        </div>
-      </Card>
-
-      <Card>
-        {loading ? (
-          <div className="flex justify-center py-12">
-            <p className="text-sm text-slate-500">Cargando...</p>
-          </div>
-        ) : payments.length === 0 ? (
-          <EmptyState
-            icon={<CreditCard className="h-8 w-8 text-slate-400" />}
-            title="No hay pagos registrados"
-            description="Los pagos aparecerán aquí una vez que se registren."
+      {/* Filtros y búsqueda */}
+      <div className="mb-6 flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Buscar por nombre o referencia..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-4 text-sm placeholder-slate-400 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder-slate-500"
           />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 dark:border-slate-700">
-                  <th className="pb-3 font-medium text-slate-500 dark:text-slate-400">Inscripto</th>
-                  <th className="pb-3 font-medium text-slate-500 dark:text-slate-400">Monto</th>
-                  <th className="pb-3 font-medium text-slate-500 dark:text-slate-400">Método</th>
-                  <th className="pb-3 font-medium text-slate-500 dark:text-slate-400">Referencia</th>
-                  <th className="pb-3 font-medium text-slate-500 dark:text-slate-400">Observaciones</th>
-                  <th className="pb-3 font-medium text-slate-500 dark:text-slate-400">Estado</th>
-                  <th className="pb-3 font-medium text-slate-500 dark:text-slate-400">Fecha</th>
-                  <th className="pb-3 font-medium text-slate-500 dark:text-slate-400"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {groupedByCamper.map((group) => {
-                  const latestTierPayment = [...group.payments].reverse().find((p) => p.tier_label);
-                  const tierLabel = latestTierPayment?.tier_label ?? "—";
-                  const tierPrice = latestTierPayment?.tier_price ?? 0;
-                  const totalPaid = group.payments
-                    .filter((p) => p.status === "completed")
-                    .reduce((s, p) => s + Number(p.amount), 0);
-                  const remaining = Math.max(0, Number(tierPrice) - totalPaid);
-                  return (
-                    <Fragment key={group.enrollmentId}>
-                      <tr className="bg-slate-50 dark:bg-slate-800/50">
-                        <td className="py-3 font-semibold text-slate-900 dark:text-white" colSpan={8}>
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <span>{group.camperName}</span>
-                            <div className="flex flex-wrap items-center gap-3 text-sm font-normal">
-                              {tierLabel !== "—" && (
-                                <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
-                                  {tierLabel}
-                                </span>
-                              )}
-                              <span className="text-slate-500 dark:text-slate-400">
-                                Total: <strong className="text-slate-700 dark:text-slate-200">${tierPrice.toLocaleString("es-AR")}</strong>
-                              </span>
-                              <span className="text-slate-500 dark:text-slate-400">
-                                Pagado: <strong className="text-emerald-600">${totalPaid.toLocaleString("es-AR")}</strong>
-                              </span>
-                              <span className="text-slate-500 dark:text-slate-400">
-                                Saldo: <strong className={remaining > 0 ? "text-amber-600" : "text-emerald-600"}>
-                                  ${remaining.toLocaleString("es-AR")}
-                                </strong>
-                              </span>
-                            </div>
-                          </div>
-                        </td>
+        </div>
+        <select value={filterMethod} onChange={(e) => setFilterMethod(e.target.value)} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+          <option value="">Todos los métodos</option>
+          <option value="cash">Efectivo</option>
+          <option value="transfer">Transferencia</option>
+          <option value="card">Tarjeta</option>
+          <option value="other">Otro</option>
+        </select>
+        <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white">
+          <option value="">Todos los estados</option>
+          <option value="pending">Pendiente</option>
+          <option value="completed">Completado</option>
+          <option value="failed">Fallido</option>
+          <option value="refunded">Reembolsado</option>
+        </select>
+      </div>
+
+      {/* Lista de pagos en Acordeón */}
+      {loading ? (
+        <div className="flex justify-center py-12"><p className="text-sm text-slate-500">Cargando...</p></div>
+      ) : payments.length === 0 ? (
+        <Card><EmptyState icon={<CreditCard className="h-8 w-8 text-slate-400" />} title="No hay pagos registrados" description="Los pagos aparecerán aquí una vez que se registren." /></Card>
+      ) : groupedByCamper.length === 0 ? (
+        <Card><EmptyState icon={<Search className="h-8 w-8 text-slate-400" />} title="Sin resultados" description="No se encontraron pagos con ese filtro." /></Card>
+      ) : (
+        <Accordion className="bg-white dark:bg-slate-900">
+          {groupedByCamper.map((group) => {
+            const latestTierPayment = [...group.payments].reverse().find((p) => p.tier_label);
+            const tierLabel = latestTierPayment?.tier_label ?? "—";
+            const tierPrice = latestTierPayment?.tier_price ?? 0;
+            const totalPaid = group.payments
+              .filter((p) => p.status === "completed")
+              .reduce((s, p) => s + Number(p.amount), 0);
+            const remaining = Math.max(0, Number(tierPrice) - totalPaid);
+
+            return (
+              <AccordionItem key={group.enrollmentId} value={group.enrollmentId} defaultOpen trigger={
+                <div className="flex w-full flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                  <span className="font-semibold text-slate-900 dark:text-white">{group.camperName}</span>
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    {tierLabel !== "—" && (
+                      <Badge variant="info">{tierLabel}</Badge>
+                    )}
+                    <span className="text-slate-500">
+                      Pagado: <strong className="text-emerald-600">${totalPaid.toLocaleString("es-AR")}</strong>
+                    </span>
+                    <span className="text-slate-500">
+                      Saldo: <strong className={remaining > 0 ? "text-amber-600" : "text-emerald-600"}>${remaining.toLocaleString("es-AR")}</strong>
+                    </span>
+                    <div className="w-24 sm:w-32">
+                      <ProgressBar value={totalPaid} max={tierPrice || 1} />
+                    </div>
+                  </div>
+                </div>
+              }>
+                {/* Mobile: card layout, Desktop: table */}
+                <div className="hidden sm:block">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-100 dark:border-slate-800">
+                        <th className="pb-2 font-medium text-slate-400">Monto</th>
+                        <th className="pb-2 font-medium text-slate-400">Método</th>
+                        <th className="pb-2 font-medium text-slate-400">Referencia</th>
+                        <th className="pb-2 font-medium text-slate-400">Observaciones</th>
+                        <th className="pb-2 font-medium text-slate-400">Estado</th>
+                        <th className="pb-2 font-medium text-slate-400">Fecha</th>
+                        <th className="pb-2 font-medium text-slate-400"></th>
                       </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
                       {group.payments.map((payment: any) => {
-                        const camper = payment.enrollment?.camper;
                         const statusInfo = statusConfig[payment.status] || statusConfig.pending;
                         return (
-                          <tr key={payment.id} className="text-xs hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                            <td className="py-1.5 pl-6">
-                              <span className="text-slate-600 dark:text-slate-400">
-                                {camper ? `${camper.first_name} ${camper.last_name}` : "—"}
-                              </span>
-                            </td>
-                            <td className="py-1.5 font-semibold text-slate-900 dark:text-white">
-                              ${Number(payment.amount).toLocaleString("es-AR")}
-                            </td>
-                            <td className="py-1.5 text-slate-500 dark:text-slate-400">
-                              {methodLabels[payment.payment_method] || payment.payment_method}
-                            </td>
-                            <td className="py-1.5 text-slate-500 dark:text-slate-400">
-                              {payment.reference || "—"}
-                            </td>
-                            <td className="py-1.5 max-w-[150px]">
+                          <tr key={payment.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                            <td className="py-1.5 font-semibold text-slate-900 dark:text-white">${Number(payment.amount).toLocaleString("es-AR")}</td>
+                            <td className="py-1.5 text-slate-500">{methodLabels[payment.payment_method] || payment.payment_method}</td>
+                            <td className="py-1.5 text-slate-500">{payment.reference || "—"}</td>
+                            <td className="py-1.5 max-w-[120px]">
                               {editingObs === payment.id ? (
                                 <div className="flex items-center gap-1">
-                                  <input
-                                    type="text"
-                                    value={obsText}
-                                    onChange={(e) => setObsText(e.target.value)}
-                                    className="w-24 rounded border border-slate-200 px-1.5 py-0.5 text-xs dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-                                  />
+                                  <input type="text" value={obsText} onChange={(e) => setObsText(e.target.value)} className="w-20 rounded border border-slate-200 px-1 py-0.5 text-xs dark:border-slate-700 dark:bg-slate-800 dark:text-white" />
                                   <button onClick={() => saveObs(payment.id)} className="text-emerald-500 hover:text-emerald-700"><Check className="h-3 w-3" /></button>
                                   <button onClick={() => setEditingObs(null)} className="text-slate-400 hover:text-slate-600"><X className="h-3 w-3" /></button>
                                 </div>
                               ) : (
                                 <div className="group flex items-center gap-1">
-                                  <span className="text-xs text-slate-600 dark:text-slate-400 truncate">{payment.observaciones || ""}</span>
-                                  <button
-                                    onClick={() => { setObsText(payment.observaciones || ""); setEditingObs(payment.id); }}
-                                    className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-slate-600 transition-opacity"
-                                  >
-                                    <Pencil className="h-3 w-3" />
-                                  </button>
+                                  <span className="truncate text-slate-600 dark:text-slate-400">{payment.observaciones || ""}</span>
+                                  <button onClick={() => { setObsText(payment.observaciones || ""); setEditingObs(payment.id); }} className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-slate-600 transition-opacity"><Pencil className="h-3 w-3" /></button>
                                 </div>
                               )}
                             </td>
+                            <td className="py-1.5"><Badge variant={statusInfo.variant}>{statusInfo.label}</Badge></td>
+                            <td className="py-1.5 text-slate-500">{new Date(payment.paid_at).toLocaleDateString("es-AR")}</td>
                             <td className="py-1.5">
-                              <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
-                            </td>
-                            <td className="py-1.5 text-slate-500 dark:text-slate-400">
-                              {new Date(payment.paid_at).toLocaleDateString("es-AR")}
-                            </td>
-                            <td className="py-1.5">
-                              <button
-                                type="button"
-                                onClick={() => setConfirmDelete(payment.id)}
-                                disabled={deletingId === payment.id}
-                                className="text-red-400 hover:text-red-600 transition-colors disabled:opacity-50"
-                                title="Eliminar pago"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
+                              <ActionsMenu actions={[
+                                { label: "Ver", icon: <Eye className="h-3.5 w-3.5" />, onClick: () => setViewPayment(payment) },
+                                { label: "Eliminar", icon: <Trash2 className="h-3.5 w-3.5" />, onClick: () => setConfirmDelete(payment.id), variant: "danger" },
+                              ]} />
                             </td>
                           </tr>
                         );
                       })}
-                    </Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
+                    </tbody>
+                  </table>
+                </div>
 
-      <ConfirmDialog
-        open={confirmDelete !== null}
-        title="Eliminar pago"
-        message="¿Estás seguro de eliminar este pago? Esta acción no se puede deshacer."
-        onConfirm={() => {
-          if (confirmDelete) handleDelete(confirmDelete);
-          setConfirmDelete(null);
-        }}
-        onCancel={() => setConfirmDelete(null)}
-      />
+                {/* Mobile cards */}
+                <div className="space-y-2 sm:hidden">
+                  {group.payments.map((payment: any) => {
+                    const statusInfo = statusConfig[payment.status] || statusConfig.pending;
+                    return (
+                      <div key={payment.id} className="rounded-lg border border-slate-100 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800/50">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="font-semibold text-slate-900 dark:text-white">${Number(payment.amount).toLocaleString("es-AR")}</span>
+                          <ActionsMenu actions={[
+                            { label: "Ver", icon: <Eye className="h-3.5 w-3.5" />, onClick: () => setViewPayment(payment) },
+                            { label: "Eliminar", icon: <Trash2 className="h-3.5 w-3.5" />, onClick: () => setConfirmDelete(payment.id), variant: "danger" },
+                          ]} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
+                          <span>Método: {methodLabels[payment.payment_method] || payment.payment_method}</span>
+                          <span>Fecha: {new Date(payment.paid_at).toLocaleDateString("es-AR")}</span>
+                          {payment.reference && <span>Ref: {payment.reference}</span>}
+                          <span><Badge variant={statusInfo.variant}>{statusInfo.label}</Badge></span>
+                        </div>
+                        {payment.observaciones && (
+                          <p className="mt-1 text-xs text-slate-400">{payment.observaciones}</p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </AccordionItem>
+            );
+          })}
+        </Accordion>
+      )}
+
+      {/* Modal Ver pago */}
+      {viewPayment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setViewPayment(null)}>
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-lg dark:bg-slate-900" onClick={(e) => e.stopPropagation()}>
+            <h3 className="mb-4 text-lg font-semibold text-slate-900 dark:text-white">Detalle del Pago</h3>
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between border-b border-slate-100 pb-2 dark:border-slate-800">
+                <span className="text-slate-500">Inscripto</span>
+                <span className="font-medium text-slate-900 dark:text-white">
+                  {viewPayment.enrollment?.camper ? `${viewPayment.enrollment.camper.first_name} ${viewPayment.enrollment.camper.last_name}` : "—"}
+                </span>
+              </div>
+              <div className="flex justify-between border-b border-slate-100 pb-2 dark:border-slate-800">
+                <span className="text-slate-500">Monto</span>
+                <span className="font-bold text-slate-900 dark:text-white">${Number(viewPayment.amount).toLocaleString("es-AR")}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-100 pb-2 dark:border-slate-800">
+                <span className="text-slate-500">Método</span>
+                <span className="text-slate-900 dark:text-white">{methodLabels[viewPayment.payment_method] || viewPayment.payment_method}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-100 pb-2 dark:border-slate-800">
+                <span className="text-slate-500">Promo</span>
+                <span className="text-slate-900 dark:text-white">{viewPayment.tier_label || "—"}</span>
+              </div>
+              {viewPayment.reference && (
+                <div className="flex justify-between border-b border-slate-100 pb-2 dark:border-slate-800">
+                  <span className="text-slate-500">Referencia</span>
+                  <span className="text-slate-900 dark:text-white">{viewPayment.reference}</span>
+                </div>
+              )}
+              <div className="flex justify-between border-b border-slate-100 pb-2 dark:border-slate-800">
+                <span className="text-slate-500">Estado</span>
+                <Badge variant={statusConfig[viewPayment.status]?.variant || "default"}>{statusConfig[viewPayment.status]?.label || viewPayment.status}</Badge>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Fecha</span>
+                <span className="text-slate-900 dark:text-white">{new Date(viewPayment.paid_at).toLocaleDateString("es-AR")}</span>
+              </div>
+              {viewPayment.observaciones && (
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Observaciones</span>
+                  <span className="text-slate-900 dark:text-white">{viewPayment.observaciones}</span>
+                </div>
+              )}
+            </div>
+            <div className="mt-6 flex justify-end">
+              <Button variant="secondary" onClick={() => setViewPayment(null)}>Cerrar</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ConfirmDialog open={confirmDelete !== null} title="Eliminar pago" message="¿Estás seguro de eliminar este pago? Esta acción no se puede deshacer." onConfirm={() => { if (confirmDelete) handleDelete(confirmDelete); setConfirmDelete(null); }} onCancel={() => setConfirmDelete(null)} />
     </AppShell>
   );
 }

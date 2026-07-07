@@ -1,14 +1,15 @@
 import { cn } from "@/lib/utils";
-import { type ReactNode } from "react";
+import { type ReactNode, forwardRef } from "react";
 
 interface CardProps {
   children: ReactNode;
   className?: string;
 }
 
-export function Card({ children, className }: CardProps) {
+export const Card = forwardRef<HTMLDivElement, CardProps>(function Card({ children, className }, ref) {
   return (
     <div
+      ref={ref}
       className={cn(
         "rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900",
         className
@@ -17,7 +18,7 @@ export function Card({ children, className }: CardProps) {
       {children}
     </div>
   );
-}
+});
 
 export function CardHeader({ children, className }: CardProps) {
   return (
