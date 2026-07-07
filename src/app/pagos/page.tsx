@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo, Fragment } from "react";
 import { AppShell } from "@/components/layout/AppShell";
-import { CreditCard, DollarSign, Clock, CheckCircle } from "lucide-react";
+import { CreditCard, DollarSign, Clock, CheckCircle, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -48,6 +48,7 @@ export default function PagosPage() {
   const [paidAt, setPaidAt] = useState(() => new Date().toISOString().slice(0, 10));
   const [suggestedAmount, setSuggestedAmount] = useState(0);
   const [selectedEnrollmentId, setSelectedEnrollmentId] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const accumulatedByEnrollment = useMemo(() => {
     const map: Record<string, number> = {};
@@ -194,6 +195,24 @@ export default function PagosPage() {
       setError(err instanceof Error ? err.message : "Error inesperado");
       setIsPending(false);
     }
+  }
+
+  async function handleDelete(paymentId: string) {
+    if (!window.confirm("¿Estás seguro de eliminar este pago?")) return;
+    setDeletingId(paymentId);
+    try {
+      const supabase = createClient();
+      const { error: delError } = await supabase.from("payments").delete().eq("id", paymentId);
+      if (delError) {
+        setError(delError.message);
+        setDeletingId(null);
+        return;
+      }
+      setPayments((prev) => prev.filter((p) => p.id !== paymentId));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error al eliminar");
+    }
+    setDeletingId(null);
   }
 
   return (
@@ -444,6 +463,7 @@ export default function PagosPage() {
                   <th className="pb-3 font-medium text-slate-500 dark:text-slate-400">Referencia</th>
                   <th className="pb-3 font-medium text-slate-500 dark:text-slate-400">Estado</th>
                   <th className="pb-3 font-medium text-slate-500 dark:text-slate-400">Fecha</th>
+                  <th className="pb-3 font-medium text-slate-500 dark:text-slate-400"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -454,7 +474,7 @@ export default function PagosPage() {
                   return (
                     <Fragment key={group.enrollmentId}>
                       <tr className="bg-slate-50 dark:bg-slate-800/50">
-                        <td className="py-3 font-semibold text-slate-900 dark:text-white" colSpan={6}>
+                        <td className="py-3 font-semibold text-slate-900 dark:text-white" colSpan={7}>
                           <div className="flex items-center justify-between">
                             <span>{group.camperName}</span>
                             <span className="text-sm font-normal text-slate-500 dark:text-slate-400">
@@ -487,6 +507,17 @@ export default function PagosPage() {
                             </td>
                             <td className="py-3 text-slate-500 dark:text-slate-400">
                               {new Date(payment.paid_at).toLocaleDateString("es-AR")}
+                            </td>
+                            <td className="py-3">
+                              <button
+                                type="button"
+                                onClick={() => handleDelete(payment.id)}
+                                disabled={deletingId === payment.id}
+                                className="text-red-400 hover:text-red-600 transition-colors disabled:opacity-50"
+                                title="Eliminar pago"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
                             </td>
                           </tr>
                         );
