@@ -162,7 +162,7 @@ export default function InscriptosPage() {
         Email: c.email,
         Teléfono: c.phone,
         Edad: c.age,
-        Género: c.gender === "M" ? "Masculino" : c.gender === "F" ? "Femenino" : "Otro",
+        Género: c.gender === "M" ? "Masculino" : "Femenino",
         Iglesia: c.church || "",
         "Saldo Total": c.balance ? `$${c.balance.tierPrice.toLocaleString("es-AR")}` : "",
         Pagado: c.balance ? `$${c.balance.paid.toLocaleString("es-AR")}` : "",
@@ -284,7 +284,7 @@ export default function InscriptosPage() {
                           {camper.first_name} {camper.last_name}
                         </p>
                         <p className="text-xs text-slate-500 dark:text-slate-400">
-                          {camper.gender === "M" ? "Masculino" : camper.gender === "F" ? "Femenino" : "Otro"}
+                          {camper.gender === "M" ? "Masculino" : "Femenino"}
                         </p>
                       </td>
                       <td className="py-3 text-sm text-slate-600 dark:text-slate-300">
@@ -413,7 +413,6 @@ export default function InscriptosPage() {
                 >
                   <option value="M">Masculino</option>
                   <option value="F">Femenino</option>
-                  <option value="Otro">Otro</option>
                 </select>
               </div>
             </div>

@@ -55,6 +55,7 @@ export default function NuevoInscriptoPage() {
         camp_name: "La Lucila",
         camp_year: 2026,
         status: "pending",
+        promo_month: (formData.get("promo_month") as string) || null,
       });
 
       router.push("/inscriptos");
@@ -166,7 +167,20 @@ export default function NuevoInscriptoPage() {
                   <option value="">Seleccionar...</option>
                   <option value="M">Masculino</option>
                   <option value="F">Femenino</option>
-                  <option value="Otro">Otro</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Mes tope de pago
+                </label>
+                <select
+                  name="promo_month"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                >
+                  <option value="">Seleccionar...</option>
+                  <option value="Septiembre">Septiembre</option>
+                  <option value="Noviembre">Noviembre</option>
+                  <option value="Enero">Enero</option>
                 </select>
               </div>
               <div className="sm:col-span-2">

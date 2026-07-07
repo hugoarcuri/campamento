@@ -5,7 +5,7 @@ export interface Camper {
   email: string;
   phone: string;
   age: number;
-  gender: "M" | "F" | "Otro";
+  gender: "M" | "F";
   church?: string;
   medical_notes?: string;
   emergency_contact: string;

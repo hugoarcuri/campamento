@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS campers (
   email TEXT NOT NULL,
   phone TEXT NOT NULL,
   age INTEGER NOT NULL CHECK (age >= 12),
-  gender TEXT NOT NULL CHECK (gender IN ('M', 'F', 'Otro')),
+  gender TEXT NOT NULL CHECK (gender IN ('M', 'F')),
   church TEXT,
   medical_notes TEXT,
   emergency_contact TEXT NOT NULL,
@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS enrollments (
   camp_name TEXT NOT NULL DEFAULT 'La Lucila',
   camp_year INTEGER NOT NULL DEFAULT 2026,
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'cancelled')),
+  promo_month TEXT CHECK (promo_month IN ('Septiembre', 'Noviembre', 'Enero')),
   registered_at TIMESTAMPTZ DEFAULT NOW(),
   observaciones TEXT
 );
@@ -53,6 +54,7 @@ DO $$ BEGIN
   ALTER TABLE payments ADD COLUMN IF NOT EXISTS tier_price DECIMAL(10,2);
   ALTER TABLE payments ADD COLUMN IF NOT EXISTS observaciones TEXT;
   ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS observaciones TEXT;
+  ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS promo_month TEXT;
   ALTER TABLE campers ADD COLUMN IF NOT EXISTS dni TEXT;
 EXCEPTION WHEN others THEN NULL;
 END $$;
