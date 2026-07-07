@@ -127,9 +127,9 @@ export default function PagosPage() {
             .select("*, enrollment:enrollments(camper_id, camp_name, status, camper:campers(first_name, last_name))")
             .order("paid_at", { ascending: false }),
           supabase
-            .from("campers")
-            .select("id, first_name, last_name, created_at, enrollments!inner(id, status)")
-            .order("created_at", { ascending: false }),
+            .from("enrollments")
+            .select("id, status, camper:campers(id, first_name, last_name)")
+            .order("registered_at", { ascending: false }),
           supabase.from("settings").select("key, value"),
         ]);
 
@@ -186,9 +186,9 @@ export default function PagosPage() {
         .order("paid_at", { ascending: false });
       setPayments(res.data || []);
       const campersRes = await supabase
-        .from("campers")
-        .select("id, first_name, last_name, created_at, enrollments!inner(id, status)")
-        .order("created_at", { ascending: false });
+        .from("enrollments")
+        .select("id, status, camper:campers(id, first_name, last_name)")
+        .order("registered_at", { ascending: false });
       setCampers(campersRes.data || []);
       setSelectedEnrollmentId("");
       setShowForm(false);
@@ -322,10 +322,10 @@ export default function PagosPage() {
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                   >
                     <option value="">Seleccionar...</option>
-                    {campers.map((camper: any) => {
-                      const enrollment = camper.enrollments?.[0];
-                      if (!enrollment) return null;
-                      return <option key={enrollment.id} value={enrollment.id}>{camper.first_name} {camper.last_name}</option>;
+                    {campers.map((enr: any) => {
+                      const camper = enr.camper;
+                      if (!camper) return null;
+                      return <option key={enr.id} value={enr.id}>{camper.first_name} {camper.last_name}</option>;
                     })}
                   </select>
                 </div>
