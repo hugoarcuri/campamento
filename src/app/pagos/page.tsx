@@ -129,7 +129,7 @@ export default function PagosPage() {
             .order("paid_at", { ascending: false }),
           supabase
             .from("campers")
-            .select("id, first_name, last_name, enrollments!inner(id, status)")
+            .select("id, first_name, last_name, enrollments!inner(id, status, promo_month)")
             .eq("enrollments.status", "pending"),
           supabase.from("settings").select("key, value"),
         ]);
@@ -185,7 +185,7 @@ export default function PagosPage() {
       if (insertError) { setError(insertError.message); setIsPending(false); return; }
       const [paymentsRes2, campersRes2] = await Promise.all([
         supabase.from("payments").select("*, enrollment:enrollments(camper_id, camp_name, status, camper:campers(first_name, last_name))").order("paid_at", { ascending: false }),
-        supabase.from("campers").select("id, first_name, last_name, enrollments!inner(id, status)").eq("enrollments.status", "pending"),
+        supabase.from("campers").select("id, first_name, last_name, enrollments!inner(id, status, promo_month)").eq("enrollments.status", "pending"),
       ]);
       setPayments(paymentsRes2.data || []);
       setCampers(campersRes2.data || []);
@@ -355,6 +355,42 @@ export default function PagosPage() {
                   <input type="text" name="observaciones" className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white" placeholder="Aclaraciones..." />
                 </div>
               </div>
+              {selectedEnrollmentId && selectedTier && (
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-800 dark:bg-emerald-900/20">
+                  <h4 className="mb-3 text-sm font-semibold text-emerald-800 dark:text-emerald-400">
+                    {campers.find((c: any) => c.enrollments?.[0]?.id === selectedEnrollmentId)?.first_name ?? "—"}
+                  </h4>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-emerald-600 dark:text-emerald-400">Mes tope</p>
+                      <p className="font-bold text-emerald-800 dark:text-emerald-200">
+                        {campers.find((c: any) => {
+                          const e = c.enrollments?.[0];
+                          return e?.id === selectedEnrollmentId;
+                        })?.enrollments?.[0]?.promo_month || "—"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-emerald-600 dark:text-emerald-400">Total del programa</p>
+                      <p className="font-bold text-emerald-800 dark:text-emerald-200">
+                        ${selectedTotal.toLocaleString("es-AR")}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-emerald-600 dark:text-emerald-400">Pagado</p>
+                      <p className="font-bold text-emerald-800 dark:text-emerald-200">
+                        ${selectedPaid.toLocaleString("es-AR")}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-emerald-600 dark:text-emerald-400">Saldo restante</p>
+                      <p className="font-bold text-amber-600">
+                        ${selectedRemaining.toLocaleString("es-AR")}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
               <div className="flex justify-end">
                 <Button type="submit" disabled={isPending}>{isPending ? "Guardando..." : "Registrar Pago"}</Button>
               </div>
