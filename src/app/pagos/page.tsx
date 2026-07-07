@@ -135,11 +135,6 @@ export default function PagosPage() {
         ]);
 
         if (cancelled) return;
-
-        console.log("[DEBUG] paymentsRes:", paymentsRes);
-        console.log("[DEBUG] campersRes:", campersForPaymentRes);
-        console.log("[DEBUG] settingsRes:", settingsRes);
-
         setPayments(paymentsRes.data || []);
         setCampers(campersForPaymentRes.data || []);
 
@@ -299,22 +294,6 @@ export default function PagosPage() {
         <Card className="mb-6" ref={formRef}>
           <CardContent className="p-4 sm:p-6">
             <h3 className="mb-4 text-base font-semibold text-slate-900 dark:text-white">Registrar Pago</h3>
-            <div className="mb-2 rounded bg-yellow-50 px-2 py-1 text-xs text-yellow-700">
-              DEBUG: campers={campers.length}, loading={String(loading)}, payments={payments.length}
-              {campers.length > 0 && campers[0].enrollments && (
-                <> | ej: {campers[0].first_name} (enrollments: {campers[0].enrollments.length})</>
-              )}
-            </div>
-            <button type="button" onClick={async () => {
-              const s = createClient();
-              const r1 = await s.from("campers").select("id, first_name");
-              const r2 = await s.from("payments").select("id, amount").limit(1);
-              console.log("[TEST] campers:", r1);
-              console.log("[TEST] payments:", r2);
-              alert("campers=" + JSON.stringify(r1.data?.length) + " error=" + (r1.error?.message||"ninguno"));
-            }} className="mb-2 w-full rounded bg-red-100 px-2 py-1 text-xs text-red-700 hover:bg-red-200">
-              TEST: Probar conexión Supabase
-            </button>
             {error && (
               <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">{error}</div>
             )}
