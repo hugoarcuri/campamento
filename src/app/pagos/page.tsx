@@ -208,7 +208,17 @@ export default function PagosPage() {
         setDeletingId(null);
         return;
       }
-      setPayments((prev) => prev.filter((p) => p.id !== paymentId));
+      setPayments((prev) => {
+        const updated = prev.filter((p) => p.id !== paymentId);
+        const now = new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+        setStats({
+          total_revenue: updated.filter((p) => p.status === "completed").reduce((s, p) => s + Number(p.amount), 0),
+          total_pending: updated.filter((p) => p.status === "pending").reduce((s, p) => s + Number(p.amount), 0),
+          total_this_month: updated.filter((p) => p.status === "completed" && p.paid_at >= startOfMonth).reduce((s, p) => s + Number(p.amount), 0),
+        });
+        return updated;
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al eliminar");
     }
