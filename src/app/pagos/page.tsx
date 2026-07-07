@@ -122,22 +122,21 @@ export default function PagosPage() {
     async function load() {
       try {
         const supabase = createClient();
-        const [paymentsRes, campersRes, settingsRes] = await Promise.all([
+        const [paymentsRes, campersForPaymentRes, settingsRes] = await Promise.all([
           supabase
             .from("payments")
             .select("*, enrollment:enrollments(camper_id, camp_name, status, camper:campers(first_name, last_name))")
             .order("paid_at", { ascending: false }),
           supabase
             .from("campers")
-            .select("id, first_name, last_name, enrollments(id)")
-            .order("created_at", { ascending: false }),
+            .select("id, first_name, last_name, enrollments!inner(id, status)")
+            .eq("enrollments.status", "pending"),
           supabase.from("settings").select("key, value"),
         ]);
 
         if (cancelled) return;
         setPayments(paymentsRes.data || []);
-        setCampers(campersRes.data || []);
-        console.log("Payments loaded:", paymentsRes.count, "Campers loaded:", campersRes.count);
+        setCampers(campersForPaymentRes.data || []);
 
         const settingsMap: Record<string, string> = {};
         (settingsRes.data || []).forEach((r: any) => { settingsMap[r.key] = r.value; });
@@ -184,12 +183,12 @@ export default function PagosPage() {
         observaciones: (formData.get("observaciones") as string) || null,
       });
       if (insertError) { setError(insertError.message); setIsPending(false); return; }
-      const [paymentsReload, campersReload] = await Promise.all([
+      const [paymentsRes2, campersRes2] = await Promise.all([
         supabase.from("payments").select("*, enrollment:enrollments(camper_id, camp_name, status, camper:campers(first_name, last_name))").order("paid_at", { ascending: false }),
-        supabase.from("campers").select("id, first_name, last_name, enrollments(id)").order("created_at", { ascending: false }),
+        supabase.from("campers").select("id, first_name, last_name, enrollments!inner(id, status)").eq("enrollments.status", "pending"),
       ]);
-      setPayments(paymentsReload.data || []);
-      setCampers(campersReload.data || []);
+      setPayments(paymentsRes2.data || []);
+      setCampers(campersRes2.data || []);
       setSelectedEnrollmentId("");
       setShowForm(false);
       setIsPending(false);
