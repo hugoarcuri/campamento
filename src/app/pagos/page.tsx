@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, Fragment } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { CreditCard, DollarSign, Clock, CheckCircle } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -47,6 +47,38 @@ export default function PagosPage() {
   const [tiers, setTiers] = useState<{ label: string; deadline: string; price: number }[]>([]);
   const [paidAt, setPaidAt] = useState(() => new Date().toISOString().slice(0, 10));
   const [suggestedAmount, setSuggestedAmount] = useState(0);
+  const [selectedEnrollmentId, setSelectedEnrollmentId] = useState("");
+
+  const accumulatedByEnrollment = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const p of payments) {
+      if (p.status === "completed" && p.enrollment_id) {
+        map[p.enrollment_id] = (map[p.enrollment_id] || 0) + Number(p.amount);
+      }
+    }
+    return map;
+  }, [payments]);
+
+  const groupedByCamper = useMemo(() => {
+    const map: Record<string, { camperName: string; enrollmentId: string; payments: any[] }> = {};
+    for (const p of payments) {
+      if (filterMethod && p.payment_method !== filterMethod) continue;
+      if (filterStatus && p.status !== filterStatus) continue;
+      const camper = p.enrollment?.camper;
+      const name = camper ? `${camper.first_name} ${camper.last_name}` : "—";
+      const eid = p.enrollment_id;
+      if (!map[eid]) {
+        map[eid] = { camperName: name, enrollmentId: eid, payments: [] };
+      }
+      map[eid].payments.push(p);
+    }
+    return Object.values(map);
+  }, [payments, filterMethod, filterStatus]);
+
+  const selectedTier = useMemo(() => getTierForDate(paidAt, tiers), [paidAt, tiers]);
+  const selectedPaid = selectedEnrollmentId ? (accumulatedByEnrollment[selectedEnrollmentId] || 0) : 0;
+  const selectedTotal = selectedTier?.price ?? 0;
+  const selectedRemaining = Math.max(0, selectedTotal - selectedPaid);
 
   useEffect(() => {
     async function load() {
@@ -146,6 +178,7 @@ export default function PagosPage() {
       const paymentsData = paymentsRes.data || [];
       setPayments(paymentsData);
       setCampers(campersForPaymentRes.data || []);
+      setSelectedEnrollmentId("");
 
       const now = new Date();
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
@@ -162,12 +195,6 @@ export default function PagosPage() {
       setIsPending(false);
     }
   }
-
-  const filteredPayments = payments.filter((p) => {
-    if (filterMethod && p.payment_method !== filterMethod) return false;
-    if (filterStatus && p.status !== filterStatus) return false;
-    return true;
-  });
 
   return (
     <AppShell>
@@ -235,6 +262,8 @@ export default function PagosPage() {
                 <select
                   name="enrollment_id"
                   required
+                  value={selectedEnrollmentId}
+                  onChange={(e) => setSelectedEnrollmentId(e.target.value)}
                   className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                 >
                   <option value="">Seleccionar...</option>
@@ -249,6 +278,35 @@ export default function PagosPage() {
                   })}
                 </select>
               </div>
+
+              {selectedEnrollmentId && selectedTier && (
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-800 dark:bg-emerald-900/20">
+                  <h4 className="mb-2 text-sm font-semibold text-emerald-800 dark:text-emerald-400">
+                    Resumen de {campers.find((c: any) => c.enrollments?.[0]?.id === selectedEnrollmentId)?.first_name ?? "—"}
+                  </h4>
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <p className="text-emerald-600 dark:text-emerald-400">Total del programa</p>
+                      <p className="text-lg font-bold text-emerald-800 dark:text-emerald-200">
+                        ${selectedTotal.toLocaleString("es-AR")}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-emerald-600 dark:text-emerald-400">Pagado</p>
+                      <p className="text-lg font-bold text-emerald-800 dark:text-emerald-200">
+                        ${selectedPaid.toLocaleString("es-AR")}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-emerald-600 dark:text-emerald-400">Saldo restante</p>
+                      <p className="text-lg font-bold text-emerald-800 dark:text-emerald-200">
+                        ${selectedRemaining.toLocaleString("es-AR")}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
@@ -267,14 +325,11 @@ export default function PagosPage() {
                     required
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                   />
-                  {(() => {
-                    const tier = getTierForDate(paidAt, tiers);
-                    return tier ? (
-                      <p className="mt-1 text-xs text-blue-600 dark:text-blue-400">
-                        Corresponde a: {tier.label} — ${tier.price.toLocaleString("es-AR")}
-                      </p>
-                    ) : null;
-                  })()}
+                  {selectedTier && (
+                    <p className="mt-1 text-xs text-blue-600 dark:text-blue-400">
+                      Corresponde a: {selectedTier.label} — ${selectedTier.price.toLocaleString("es-AR")}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
@@ -372,7 +427,7 @@ export default function PagosPage() {
           <div className="flex justify-center py-12">
             <p className="text-sm text-slate-500">Cargando...</p>
           </div>
-        ) : filteredPayments.length === 0 ? (
+        ) : payments.length === 0 ? (
           <EmptyState
             icon={<CreditCard className="h-8 w-8 text-slate-400" />}
             title="No hay pagos registrados"
@@ -392,32 +447,51 @@ export default function PagosPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {filteredPayments.map((payment: any) => {
-                  const camper = payment.enrollment?.camper;
-                  const statusInfo = statusConfig[payment.status] || statusConfig.pending;
+                {groupedByCamper.map((group) => {
+                  const groupTotal = group.payments
+                    .filter((p) => p.status === "completed")
+                    .reduce((s, p) => s + Number(p.amount), 0);
                   return (
-                    <tr key={payment.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                      <td className="py-4">
-                        <span className="font-medium text-slate-900 dark:text-white">
-                          {camper ? `${camper.first_name} ${camper.last_name}` : "—"}
-                        </span>
-                      </td>
-                      <td className="py-4 text-slate-900 dark:text-white">
-                        ${Number(payment.amount).toLocaleString("es-AR")}
-                      </td>
-                      <td className="py-4 text-slate-500 dark:text-slate-400">
-                        {methodLabels[payment.payment_method] || payment.payment_method}
-                      </td>
-                      <td className="py-4 text-slate-500 dark:text-slate-400">
-                        {payment.reference || "—"}
-                      </td>
-                      <td className="py-4">
-                        <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
-                      </td>
-                      <td className="py-4 text-slate-500 dark:text-slate-400">
-                        {new Date(payment.paid_at).toLocaleDateString("es-AR")}
-                      </td>
-                    </tr>
+                    <Fragment key={group.enrollmentId}>
+                      <tr className="bg-slate-50 dark:bg-slate-800/50">
+                        <td className="py-3 font-semibold text-slate-900 dark:text-white" colSpan={6}>
+                          <div className="flex items-center justify-between">
+                            <span>{group.camperName}</span>
+                            <span className="text-sm font-normal text-slate-500 dark:text-slate-400">
+                              Total: ${groupTotal.toLocaleString("es-AR")}
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+                      {group.payments.map((payment: any) => {
+                        const camper = payment.enrollment?.camper;
+                        const statusInfo = statusConfig[payment.status] || statusConfig.pending;
+                        return (
+                          <tr key={payment.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                            <td className="py-3 pl-6">
+                              <span className="text-slate-600 dark:text-slate-400">
+                                {camper ? `${camper.first_name} ${camper.last_name}` : "—"}
+                              </span>
+                            </td>
+                            <td className="py-3 text-slate-900 dark:text-white">
+                              ${Number(payment.amount).toLocaleString("es-AR")}
+                            </td>
+                            <td className="py-3 text-slate-500 dark:text-slate-400">
+                              {methodLabels[payment.payment_method] || payment.payment_method}
+                            </td>
+                            <td className="py-3 text-slate-500 dark:text-slate-400">
+                              {payment.reference || "—"}
+                            </td>
+                            <td className="py-3">
+                              <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
+                            </td>
+                            <td className="py-3 text-slate-500 dark:text-slate-400">
+                              {new Date(payment.paid_at).toLocaleDateString("es-AR")}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </Fragment>
                   );
                 })}
               </tbody>
