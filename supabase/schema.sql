@@ -27,7 +27,8 @@ CREATE TABLE IF NOT EXISTS enrollments (
   camp_name TEXT NOT NULL DEFAULT 'La Lucila',
   camp_year INTEGER NOT NULL DEFAULT 2026,
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'cancelled')),
-  registered_at TIMESTAMPTZ DEFAULT NOW()
+  registered_at TIMESTAMPTZ DEFAULT NOW(),
+  observaciones TEXT
 );
 
 -- Tabla de pagos
@@ -41,13 +42,16 @@ CREATE TABLE IF NOT EXISTS payments (
   reference TEXT,
   paid_at TIMESTAMPTZ DEFAULT NOW(),
   tier_label TEXT,
-  tier_price DECIMAL(10,2)
+  tier_price DECIMAL(10,2),
+  observaciones TEXT
 );
 
 -- Agregar columnas de tier si la tabla ya existe (ejecutar sin errores si ya existen)
 DO $$ BEGIN
   ALTER TABLE payments ADD COLUMN IF NOT EXISTS tier_label TEXT;
   ALTER TABLE payments ADD COLUMN IF NOT EXISTS tier_price DECIMAL(10,2);
+  ALTER TABLE payments ADD COLUMN IF NOT EXISTS observaciones TEXT;
+  ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS observaciones TEXT;
 EXCEPTION WHEN others THEN NULL;
 END $$;
 

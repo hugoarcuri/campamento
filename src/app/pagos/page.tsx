@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo, Fragment } from "react";
 import { AppShell } from "@/components/layout/AppShell";
-import { CreditCard, DollarSign, Clock, CheckCircle, Trash2 } from "lucide-react";
+import { CreditCard, DollarSign, Clock, CheckCircle, Trash2, FileDown, Pencil, Check, X } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/Badge";
 import { StatCard } from "@/components/ui/StatCard";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { createClient } from "@/lib/supabase/client";
+import * as XLSX from "xlsx";
 
 const methodLabels: Record<string, string> = {
   cash: "Efectivo",
@@ -51,6 +52,8 @@ export default function PagosPage() {
   const [selectedEnrollmentId, setSelectedEnrollmentId] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [editingObs, setEditingObs] = useState<string | null>(null);
+  const [obsText, setObsText] = useState("");
 
   const accumulatedByEnrollment = useMemo(() => {
     const map: Record<string, number> = {};
@@ -162,6 +165,7 @@ export default function PagosPage() {
         paid_at: new Date(paidDate + "T12:00:00").toISOString(),
         tier_label: selectedTier?.label ?? null,
         tier_price: selectedTier?.price ?? null,
+        observaciones: (formData.get("observaciones") as string) || null,
       });
 
       if (insertError) {
@@ -229,15 +233,45 @@ export default function PagosPage() {
     setDeletingId(null);
   }
 
+  async function saveObs(paymentId: string) {
+    const supabase = createClient();
+    await supabase.from("payments").update({ observaciones: obsText }).eq("id", paymentId);
+    setPayments((prev) => prev.map((p) => (p.id === paymentId ? { ...p, observaciones: obsText } : p)));
+    setEditingObs(null);
+  }
+
+  function exportToExcel() {
+    const data = payments.map((p: any) => ({
+      Inscripto: p.enrollment?.camper ? `${p.enrollment.camper.first_name} ${p.enrollment.camper.last_name}` : "—",
+      Monto: Number(p.amount),
+      Promo: p.tier_label || "",
+      Método: methodLabels[p.payment_method] || p.payment_method,
+      Referencia: p.reference || "",
+      Estado: statusConfig[p.status]?.label || p.status,
+      Fecha: new Date(p.paid_at).toLocaleDateString("es-AR"),
+      Observaciones: p.observaciones || "",
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Pagos");
+    XLSX.writeFile(wb, "pagos.xlsx");
+  }
+
   return (
     <AppShell>
       <PageHeader
         title="Pagos"
         description="Gestión de pagos y cobranzas del campamento"
         actions={
-          <Button onClick={() => setShowForm(!showForm)}>
-            {showForm ? "Cancelar" : "+ Registrar Pago"}
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={exportToExcel}>
+              <FileDown className="h-4 w-4" />
+              Exportar
+            </Button>
+            <Button onClick={() => setShowForm(!showForm)}>
+              {showForm ? "Cancelar" : "+ Registrar Pago"}
+            </Button>
+          </div>
         }
       />
 
@@ -405,6 +439,17 @@ export default function PagosPage() {
                     placeholder="N° de recibo, transferencia..."
                   />
                 </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Observaciones
+                  </label>
+                  <input
+                    type="text"
+                    name="observaciones"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                    placeholder="Aclaraciones..."
+                  />
+                </div>
               </div>
               <div className="flex justify-end">
                 <Button type="submit" disabled={isPending}>
@@ -463,6 +508,7 @@ export default function PagosPage() {
                   <th className="pb-3 font-medium text-slate-500 dark:text-slate-400">Monto</th>
                   <th className="pb-3 font-medium text-slate-500 dark:text-slate-400">Método</th>
                   <th className="pb-3 font-medium text-slate-500 dark:text-slate-400">Referencia</th>
+                  <th className="pb-3 font-medium text-slate-500 dark:text-slate-400">Observaciones</th>
                   <th className="pb-3 font-medium text-slate-500 dark:text-slate-400">Estado</th>
                   <th className="pb-3 font-medium text-slate-500 dark:text-slate-400">Fecha</th>
                   <th className="pb-3 font-medium text-slate-500 dark:text-slate-400"></th>
@@ -480,7 +526,7 @@ export default function PagosPage() {
                   return (
                     <Fragment key={group.enrollmentId}>
                       <tr className="bg-slate-50 dark:bg-slate-800/50">
-                        <td className="py-3 font-semibold text-slate-900 dark:text-white" colSpan={7}>
+                        <td className="py-3 font-semibold text-slate-900 dark:text-white" colSpan={8}>
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <span>{group.camperName}</span>
                             <div className="flex flex-wrap items-center gap-3 text-sm font-normal">
@@ -522,6 +568,30 @@ export default function PagosPage() {
                             </td>
                             <td className="py-3 text-slate-500 dark:text-slate-400">
                               {payment.reference || "—"}
+                            </td>
+                            <td className="py-3 max-w-[150px]">
+                              {editingObs === payment.id ? (
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    type="text"
+                                    value={obsText}
+                                    onChange={(e) => setObsText(e.target.value)}
+                                    className="w-24 rounded border border-slate-200 px-1.5 py-0.5 text-xs dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                                  />
+                                  <button onClick={() => saveObs(payment.id)} className="text-emerald-500 hover:text-emerald-700"><Check className="h-3 w-3" /></button>
+                                  <button onClick={() => setEditingObs(null)} className="text-slate-400 hover:text-slate-600"><X className="h-3 w-3" /></button>
+                                </div>
+                              ) : (
+                                <div className="group flex items-center gap-1">
+                                  <span className="text-xs text-slate-600 dark:text-slate-400 truncate">{payment.observaciones || ""}</span>
+                                  <button
+                                    onClick={() => { setObsText(payment.observaciones || ""); setEditingObs(payment.id); }}
+                                    className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-slate-600 transition-opacity"
+                                  >
+                                    <Pencil className="h-3 w-3" />
+                                  </button>
+                                </div>
+                              )}
                             </td>
                             <td className="py-3">
                               <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
