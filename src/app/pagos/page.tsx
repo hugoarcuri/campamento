@@ -294,6 +294,12 @@ export default function PagosPage() {
         <Card className="mb-6" ref={formRef}>
           <CardContent className="p-4 sm:p-6">
             <h3 className="mb-4 text-base font-semibold text-slate-900 dark:text-white">Registrar Pago</h3>
+            <div className="mb-2 rounded bg-yellow-50 px-2 py-1 text-xs text-yellow-700">
+              DEBUG: campers={campers.length}, loading={String(loading)}, payments={payments.length}
+              {campers.length > 0 && campers[0].enrollments && (
+                <> | ej: {campers[0].first_name} (enrollments: {campers[0].enrollments.length})</>
+              )}
+            </div>
             {error && (
               <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">{error}</div>
             )}
