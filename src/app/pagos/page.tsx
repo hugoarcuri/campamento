@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Card, CardHeader, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { StatCard } from "@/components/ui/StatCard";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { createClient } from "@/lib/supabase/client";
 
 const methodLabels: Record<string, string> = {
@@ -45,11 +46,11 @@ export default function PagosPage() {
   const [filterMethod, setFilterMethod] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [tiers, setTiers] = useState<{ label: string; deadline: string; price: number }[]>([]);
-  const [selectedTierIndex, setSelectedTierIndex] = useState(0);
   const [paidAt, setPaidAt] = useState(() => new Date().toISOString().slice(0, 10));
   const [suggestedAmount, setSuggestedAmount] = useState(0);
   const [selectedEnrollmentId, setSelectedEnrollmentId] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   const accumulatedByEnrollment = useMemo(() => {
     const map: Record<string, number> = {};
@@ -77,7 +78,7 @@ export default function PagosPage() {
     return Object.values(map);
   }, [payments, filterMethod, filterStatus]);
 
-  const selectedTier = tiers[selectedTierIndex] ?? null;
+  const selectedTier = useMemo(() => getTierForDate(paidAt, tiers), [paidAt, tiers]);
   const selectedPaid = selectedEnrollmentId ? (accumulatedByEnrollment[selectedEnrollmentId] || 0) : 0;
   const selectedTotal = selectedTier?.price ?? 0;
   const selectedRemaining = Math.max(0, selectedTotal - selectedPaid);
@@ -115,8 +116,9 @@ export default function PagosPage() {
           .filter((t) => t.deadline && t.price > 0);
         setTiers(loadedTiers);
         if (loadedTiers.length > 0) {
-          setSelectedTierIndex(0);
-          setSuggestedAmount(loadedTiers[0].price);
+          const today = new Date().toISOString().slice(0, 10);
+          const initialTier = getTierForDate(today, loadedTiers);
+          setSuggestedAmount(initialTier?.price ?? 0);
         }
 
         const now = new Date();
@@ -201,7 +203,6 @@ export default function PagosPage() {
   }
 
   async function handleDelete(paymentId: string) {
-    if (!window.confirm("¿Estás seguro de eliminar este pago?")) return;
     setDeletingId(paymentId);
     try {
       const supabase = createClient();
@@ -273,29 +274,15 @@ export default function PagosPage() {
             <form onSubmit={handleSubmit} className="space-y-4">
               {tiers.length > 0 && (
                 <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
-                  <h4 className="mb-3 text-sm font-semibold text-blue-800 dark:text-blue-400">
-                    Elegí el plan de pago
+                  <h4 className="mb-2 text-sm font-semibold text-blue-800 dark:text-blue-400">
+                    Precios según fecha de pago
                   </h4>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="space-y-1 text-sm text-blue-700 dark:text-blue-300">
                     {tiers.map((t, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={() => {
-                          setSelectedTierIndex(i);
-                          setSuggestedAmount(t.price);
-                        }}
-                        className={`flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors ${
-                          selectedTierIndex === i
-                            ? "border-blue-500 bg-blue-600 text-white shadow-sm"
-                            : "border-blue-200 bg-white text-blue-700 hover:bg-blue-100 dark:border-blue-700 dark:bg-blue-950/30 dark:text-blue-300 dark:hover:bg-blue-900/40"
-                        }`}
-                      >
-                        {t.label}
-                        <span className={`text-xs ${selectedTierIndex === i ? "text-blue-200" : "text-blue-500"}`}>
-                          ${t.price.toLocaleString("es-AR")}
-                        </span>
-                      </button>
+                      <div key={i} className="flex justify-between">
+                        <span>{t.label} (hasta {new Date(t.deadline + "T12:00:00").toLocaleDateString("es-AR")})</span>
+                        <span className="font-semibold">${t.price.toLocaleString("es-AR")}</span>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -362,10 +349,20 @@ export default function PagosPage() {
                     type="date"
                     name="paid_at"
                     value={paidAt}
-                    onChange={(e) => setPaidAt(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setPaidAt(val);
+                      const tier = getTierForDate(val, tiers);
+                      setSuggestedAmount(tier?.price ?? 0);
+                    }}
                     required
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                   />
+                  {selectedTier && (
+                    <p className="mt-1 text-xs text-blue-600 dark:text-blue-400">
+                      Corresponde a: {selectedTier.label} — ${selectedTier.price.toLocaleString("es-AR")}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
@@ -547,7 +544,7 @@ export default function PagosPage() {
                             <td className="py-3">
                               <button
                                 type="button"
-                                onClick={() => handleDelete(payment.id)}
+                                onClick={() => setConfirmDelete(payment.id)}
                                 disabled={deletingId === payment.id}
                                 className="text-red-400 hover:text-red-600 transition-colors disabled:opacity-50"
                                 title="Eliminar pago"
@@ -566,6 +563,17 @@ export default function PagosPage() {
           </div>
         )}
       </Card>
+
+      <ConfirmDialog
+        open={confirmDelete !== null}
+        title="Eliminar pago"
+        message="¿Estás seguro de eliminar este pago? Esta acción no se puede deshacer."
+        onConfirm={() => {
+          if (confirmDelete) handleDelete(confirmDelete);
+          setConfirmDelete(null);
+        }}
+        onCancel={() => setConfirmDelete(null)}
+      />
     </AppShell>
   );
 }
