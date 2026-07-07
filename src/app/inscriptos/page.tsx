@@ -37,11 +37,11 @@ export default function InscriptosPage() {
           .select("enrollment_id, amount, status, tier_label, tier_price"),
       ]);
 
-      const paymentsByEnrollment: Record<string, { paid: number; tierPrice: number }> = {};
+      const paymentsByEnrollment: Record<string, { paid: number; tierPrice: number; tierLabel: string | null }> = {};
       for (const p of paymentsRes.data || []) {
         if (p.status !== "completed") continue;
         if (!paymentsByEnrollment[p.enrollment_id]) {
-          paymentsByEnrollment[p.enrollment_id] = { paid: 0, tierPrice: p.tier_price || 0 };
+          paymentsByEnrollment[p.enrollment_id] = { paid: 0, tierPrice: p.tier_price || 0, tierLabel: p.tier_label || null };
         }
         paymentsByEnrollment[p.enrollment_id].paid += Number(p.amount);
         if (p.tier_price) {
@@ -235,21 +235,14 @@ export default function InscriptosPage() {
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-slate-700">
-                  <th className="pb-3 pr-2">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.size === filteredCampers.length && filteredCampers.length > 0}
-                      onChange={toggleSelectAll}
-                      className="h-4 w-4 rounded border-slate-300"
-                    />
-                  </th>
+                  <th className="pb-3 pr-2 font-medium text-slate-500 dark:text-slate-400"></th>
                   <th className="pb-3 font-medium text-slate-500 dark:text-slate-400">Nombre</th>
                   <th className="pb-3 font-medium text-slate-500 dark:text-slate-400">Contacto</th>
                   <th className="pb-3 font-medium text-slate-500 dark:text-slate-400">Edad</th>
                   <th className="pb-3 font-medium text-slate-500 dark:text-slate-400">Iglesia</th>
+                  <th className="pb-3 font-medium text-slate-500 dark:text-slate-400">Promo</th>
                   <th className="pb-3 font-medium text-slate-500 dark:text-slate-400">Saldo</th>
                   <th className="pb-3 font-medium text-slate-500 dark:text-slate-400">Observaciones</th>
-                  <th className="pb-3 font-medium text-slate-500 dark:text-slate-400"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -264,6 +257,24 @@ export default function InscriptosPage() {
                           onChange={() => toggleSelect(camper.id)}
                           className="h-4 w-4 rounded border-slate-300"
                         />
+                      </td>
+                      <td className="py-3 pr-2">
+                        <div className="flex items-center gap-0.5">
+                          <button
+                            onClick={() => openEdit(camper)}
+                            className="rounded p-0.5 text-slate-300 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/20"
+                            title="Editar"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => setConfirmDelete(camper.id)}
+                            className="rounded p-0.5 text-slate-300 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
+                            title="Eliminar"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                       </td>
                       <td className="py-3">
                         <p className="font-medium text-slate-900 dark:text-white">
@@ -291,6 +302,11 @@ export default function InscriptosPage() {
                           <Church className="h-3 w-3" />
                           {camper.church || "-"}
                         </div>
+                      </td>
+                      <td className="py-3">
+                        <span className="text-xs text-slate-600 dark:text-slate-300">
+                          {camper.balance?.tierLabel || "—"}
+                        </span>
                       </td>
                       <td className="py-3">
                         {camper.balance ? (() => {
@@ -332,24 +348,6 @@ export default function InscriptosPage() {
                             </button>
                           </div>
                         )}
-                      </td>
-                      <td className="py-3">
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => openEdit(camper)}
-                            className="rounded p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/20"
-                            title="Editar"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => setConfirmDelete(camper.id)}
-                            className="rounded p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
-                            title="Eliminar"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
                       </td>
                     </tr>
                   );
