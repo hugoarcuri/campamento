@@ -39,8 +39,17 @@ CREATE TABLE IF NOT EXISTS payments (
   payment_method TEXT NOT NULL CHECK (payment_method IN ('cash', 'transfer', 'card', 'other')),
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'completed', 'failed', 'refunded')),
   reference TEXT,
-  paid_at TIMESTAMPTZ DEFAULT NOW()
+  paid_at TIMESTAMPTZ DEFAULT NOW(),
+  tier_label TEXT,
+  tier_price DECIMAL(10,2)
 );
+
+-- Agregar columnas de tier si la tabla ya existe (ejecutar sin errores si ya existen)
+DO $$ BEGIN
+  ALTER TABLE payments ADD COLUMN IF NOT EXISTS tier_label TEXT;
+  ALTER TABLE payments ADD COLUMN IF NOT EXISTS tier_price DECIMAL(10,2);
+EXCEPTION WHEN others THEN NULL;
+END $$;
 
 -- Tabla de configuración
 CREATE TABLE IF NOT EXISTS settings (

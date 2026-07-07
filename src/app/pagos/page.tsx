@@ -158,6 +158,8 @@ export default function PagosPage() {
         status: (formData.get("status") as string) || "completed",
         reference: (formData.get("reference") as string) || null,
         paid_at: new Date(paidDate + "T12:00:00").toISOString(),
+        tier_label: selectedTier?.label ?? null,
+        tier_price: selectedTier?.price ?? null,
       });
 
       if (insertError) {
@@ -483,6 +485,7 @@ export default function PagosPage() {
                 <tr className="border-b border-slate-200 dark:border-slate-700">
                   <th className="pb-3 font-medium text-slate-500 dark:text-slate-400">Inscripto</th>
                   <th className="pb-3 font-medium text-slate-500 dark:text-slate-400">Monto</th>
+                  <th className="pb-3 font-medium text-slate-500 dark:text-slate-400">Promo</th>
                   <th className="pb-3 font-medium text-slate-500 dark:text-slate-400">Método</th>
                   <th className="pb-3 font-medium text-slate-500 dark:text-slate-400">Referencia</th>
                   <th className="pb-3 font-medium text-slate-500 dark:text-slate-400">Estado</th>
@@ -492,18 +495,37 @@ export default function PagosPage() {
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {groupedByCamper.map((group) => {
-                  const groupTotal = group.payments
+                  const latestTierPayment = [...group.payments].reverse().find((p) => p.tier_label);
+                  const tierLabel = latestTierPayment?.tier_label ?? "—";
+                  const tierPrice = latestTierPayment?.tier_price ?? 0;
+                  const totalPaid = group.payments
                     .filter((p) => p.status === "completed")
                     .reduce((s, p) => s + Number(p.amount), 0);
+                  const remaining = Math.max(0, Number(tierPrice) - totalPaid);
                   return (
                     <Fragment key={group.enrollmentId}>
                       <tr className="bg-slate-50 dark:bg-slate-800/50">
-                        <td className="py-3 font-semibold text-slate-900 dark:text-white" colSpan={7}>
-                          <div className="flex items-center justify-between">
+                        <td className="py-3 font-semibold text-slate-900 dark:text-white" colSpan={8}>
+                          <div className="flex flex-wrap items-center justify-between gap-2">
                             <span>{group.camperName}</span>
-                            <span className="text-sm font-normal text-slate-500 dark:text-slate-400">
-                              Total: ${groupTotal.toLocaleString("es-AR")}
-                            </span>
+                            <div className="flex flex-wrap items-center gap-3 text-sm font-normal">
+                              {tierLabel !== "—" && (
+                                <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+                                  {tierLabel}
+                                </span>
+                              )}
+                              <span className="text-slate-500 dark:text-slate-400">
+                                Total: <strong className="text-slate-700 dark:text-slate-200">${tierPrice.toLocaleString("es-AR")}</strong>
+                              </span>
+                              <span className="text-slate-500 dark:text-slate-400">
+                                Pagado: <strong className="text-emerald-600">${totalPaid.toLocaleString("es-AR")}</strong>
+                              </span>
+                              <span className="text-slate-500 dark:text-slate-400">
+                                Saldo: <strong className={remaining > 0 ? "text-amber-600" : "text-emerald-600"}>
+                                  ${remaining.toLocaleString("es-AR")}
+                                </strong>
+                              </span>
+                            </div>
                           </div>
                         </td>
                       </tr>
@@ -519,6 +541,15 @@ export default function PagosPage() {
                             </td>
                             <td className="py-3 text-slate-900 dark:text-white">
                               ${Number(payment.amount).toLocaleString("es-AR")}
+                            </td>
+                            <td className="py-3">
+                              {payment.tier_label ? (
+                                <span className="inline-block rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-600 dark:bg-blue-900/20 dark:text-blue-400">
+                                  {payment.tier_label}
+                                </span>
+                              ) : (
+                                <span className="text-xs text-slate-400">—</span>
+                              )}
                             </td>
                             <td className="py-3 text-slate-500 dark:text-slate-400">
                               {methodLabels[payment.payment_method] || payment.payment_method}
