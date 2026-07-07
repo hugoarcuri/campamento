@@ -121,20 +121,24 @@ export default function PagosPage() {
     async function load() {
       try {
         const supabase = createClient();
-        const [paymentsRes, campersForPaymentRes, settingsRes] = await Promise.all([
+        const [paymentsRes, campersRes, enrollmentsRes, settingsRes] = await Promise.all([
           supabase
             .from("payments")
             .select("*, enrollment:enrollments(camper_id, camp_name, status, camper:campers(first_name, last_name))")
             .order("paid_at", { ascending: false }),
-          supabase
-            .from("enrollments")
-            .select("id, status, camper:campers(id, first_name, last_name)")
-            .order("registered_at", { ascending: false }),
+          supabase.from("campers").select("*").order("created_at", { ascending: false }),
+          supabase.from("enrollments").select("*").order("registered_at", { ascending: false }),
           supabase.from("settings").select("key, value"),
         ]);
 
         setPayments(paymentsRes.data || []);
-        setCampers(campersForPaymentRes.data || []);
+
+        const camperMap: Record<string, any> = {};
+        (campersRes.data || []).forEach((c: any) => { camperMap[c.id] = c; });
+        const enrollmentsWithCamper = (enrollmentsRes.data || [])
+          .map((enr: any) => ({ ...enr, camper: camperMap[enr.camper_id] || null }))
+          .filter((enr: any) => enr.camper);
+        setCampers(enrollmentsWithCamper);
 
         const settingsMap: Record<string, string> = {};
         (settingsRes.data || []).forEach((r: any) => { settingsMap[r.key] = r.value; });
@@ -180,16 +184,18 @@ export default function PagosPage() {
         observaciones: (formData.get("observaciones") as string) || null,
       });
       if (insertError) { setError(insertError.message); setIsPending(false); return; }
-      const res = await supabase
-        .from("payments")
-        .select("*, enrollment:enrollments(camper_id, camp_name, status, camper:campers(first_name, last_name))")
-        .order("paid_at", { ascending: false });
-      setPayments(res.data || []);
-      const campersRes = await supabase
-        .from("enrollments")
-        .select("id, status, camper:campers(id, first_name, last_name)")
-        .order("registered_at", { ascending: false });
-      setCampers(campersRes.data || []);
+      const [paymentsReload, campersReload, enrollmentsReload] = await Promise.all([
+        supabase.from("payments").select("*, enrollment:enrollments(camper_id, camp_name, status, camper:campers(first_name, last_name))").order("paid_at", { ascending: false }),
+        supabase.from("campers").select("*").order("created_at", { ascending: false }),
+        supabase.from("enrollments").select("*").order("registered_at", { ascending: false }),
+      ]);
+      setPayments(paymentsReload.data || []);
+      const camperMap: Record<string, any> = {};
+      (campersReload.data || []).forEach((c: any) => { camperMap[c.id] = c; });
+      const enrollmentsWithCamper = (enrollmentsReload.data || [])
+        .map((enr: any) => ({ ...enr, camper: camperMap[enr.camper_id] || null }))
+        .filter((enr: any) => enr.camper);
+      setCampers(enrollmentsWithCamper);
       setSelectedEnrollmentId("");
       setShowForm(false);
       setIsPending(false);
